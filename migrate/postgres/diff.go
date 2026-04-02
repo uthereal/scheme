@@ -5,7 +5,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/uthereal/scheme/genproto/spec/postgres"
+	"github.com/uthereal/scheme/genproto/postgres"
 )
 
 // Differ represents the state reconciliation engine that computes required

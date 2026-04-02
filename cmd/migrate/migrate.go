@@ -10,8 +10,8 @@ import (
 	"os"
 
 	_ "github.com/lib/pq"
-	"github.com/uthereal/scheme/genproto/spec"
-	"github.com/uthereal/scheme/genproto/spec/core"
+	"github.com/uthereal/scheme/genproto"
+	"github.com/uthereal/scheme/genproto/core"
 
 	"github.com/uthereal/scheme/migrate/postgres"
 	"google.golang.org/protobuf/encoding/prototext"
@@ -73,7 +73,7 @@ func Run(ctx context.Context, logger *slog.Logger, args []string) int {
 		return 1
 	}
 
-	scheme := &spec.Scheme{}
+	scheme := &genproto.Scheme{}
 	err = prototext.Unmarshal(data, scheme)
 	if err != nil {
 		logger.Error(

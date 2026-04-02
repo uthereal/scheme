@@ -5,8 +5,8 @@ import (
 
 	"github.com/uthereal/scheme/gen"
 	"github.com/uthereal/scheme/gen/postgres/model"
-	"github.com/uthereal/scheme/genproto/spec/core"
-	"github.com/uthereal/scheme/genproto/spec/postgres"
+	"github.com/uthereal/scheme/genproto/core"
+	"github.com/uthereal/scheme/genproto/postgres"
 )
 
 func TestGenerateModels(t *testing.T) {

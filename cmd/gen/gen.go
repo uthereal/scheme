@@ -14,8 +14,8 @@ import (
 	"github.com/uthereal/scheme/gen"
 	"github.com/uthereal/scheme/gen/postgres/model"
 	"github.com/uthereal/scheme/gen/postgres/query"
-	"github.com/uthereal/scheme/genproto/spec"
-	"github.com/uthereal/scheme/genproto/spec/core"
+	"github.com/uthereal/scheme/genproto"
+	"github.com/uthereal/scheme/genproto/core"
 	"google.golang.org/protobuf/encoding/prototext"
 )
 
@@ -82,7 +82,7 @@ func Run(_ context.Context, logger *slog.Logger, args []string) int {
 		return 1
 	}
 
-	scheme := &spec.Scheme{}
+	scheme := &genproto.Scheme{}
 	err = prototext.Unmarshal(data, scheme)
 	if err != nil {
 		logger.Error("Failed to parse the textproto schema.", slog.Any("error", err))

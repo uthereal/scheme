@@ -9,7 +9,7 @@ import (
 	"github.com/ettle/strcase"
 	"github.com/uthereal/scheme/gen"
 	"github.com/uthereal/scheme/gen/postgres/ast"
-	"github.com/uthereal/scheme/genproto/spec/core"
+	"github.com/uthereal/scheme/genproto/core"
 )
 
 // modelTemplateData holds all required data to generate go code from the

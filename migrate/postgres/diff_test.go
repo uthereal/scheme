@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/uthereal/scheme/genproto/spec/postgres"
+	"github.com/uthereal/scheme/genproto/postgres"
 )
 
 func TestDiffer_DeterministicPlan(t *testing.T) {

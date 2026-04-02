@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/uthereal/scheme/gen/postgres/ast"
-	"github.com/uthereal/scheme/genproto/spec/postgres"
+	"github.com/uthereal/scheme/genproto/postgres"
 )
 
 func TestNewSchemaGraph(t *testing.T) {
