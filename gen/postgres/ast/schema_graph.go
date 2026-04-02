@@ -7,8 +7,8 @@ import (
 	"strings"
 
 	"github.com/ettle/strcase"
-	"github.com/scheme/genproto/spec/core/shared"
-	"github.com/scheme/genproto/spec/postgres"
+	"github.com/uthereal/scheme/genproto/spec/core/shared"
+	"github.com/uthereal/scheme/genproto/spec/postgres"
 )
 
 // SchemaGraph handles resolving PostgreSQL data types into target generator

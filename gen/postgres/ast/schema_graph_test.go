@@ -3,8 +3,8 @@ package ast_test
 import (
 	"testing"
 
-	"github.com/scheme/gen/postgres/ast"
-	"github.com/scheme/genproto/spec/postgres"
+	"github.com/uthereal/scheme/gen/postgres/ast"
+	"github.com/uthereal/scheme/genproto/spec/postgres"
 )
 
 func TestNewSchemaGraph(t *testing.T) {

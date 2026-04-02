@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/scheme/migrate/postgres"
+	"github.com/uthereal/scheme/migrate/postgres"
 )
 
 func TestInspect(t *testing.T) {

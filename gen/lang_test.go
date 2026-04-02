@@ -3,7 +3,7 @@ package gen_test
 import (
 	"testing"
 
-	"github.com/scheme/gen"
+	"github.com/uthereal/scheme/gen"
 )
 
 func TestLanguage_Validate(t *testing.T) {

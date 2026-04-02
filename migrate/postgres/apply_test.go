@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/scheme/migrate/postgres"
+	"github.com/uthereal/scheme/migrate/postgres"
 )
 
 // Minimal dummy driver for testing Apply without a real DB.

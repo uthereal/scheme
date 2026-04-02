@@ -11,11 +11,11 @@ import (
 	"strings"
 
 	"github.com/ettle/strcase"
-	"github.com/scheme/gen"
-	"github.com/scheme/gen/postgres/model"
-	"github.com/scheme/gen/postgres/query"
-	"github.com/scheme/genproto/spec"
-	"github.com/scheme/genproto/spec/core"
+	"github.com/uthereal/scheme/gen"
+	"github.com/uthereal/scheme/gen/postgres/model"
+	"github.com/uthereal/scheme/gen/postgres/query"
+	"github.com/uthereal/scheme/genproto/spec"
+	"github.com/uthereal/scheme/genproto/spec/core"
 	"google.golang.org/protobuf/encoding/prototext"
 )
 

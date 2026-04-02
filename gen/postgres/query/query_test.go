@@ -3,10 +3,10 @@ package query_test
 import (
 	"testing"
 
-	"github.com/scheme/gen"
-	"github.com/scheme/gen/postgres/query"
-	"github.com/scheme/genproto/spec/core"
-	"github.com/scheme/genproto/spec/postgres"
+	"github.com/uthereal/scheme/gen"
+	"github.com/uthereal/scheme/gen/postgres/query"
+	"github.com/uthereal/scheme/genproto/spec/core"
+	"github.com/uthereal/scheme/genproto/spec/postgres"
 )
 
 func TestGenerateQueryBuilders(t *testing.T) {

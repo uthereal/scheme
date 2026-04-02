@@ -3,7 +3,7 @@ package ast_test
 import (
 	"testing"
 
-	"github.com/scheme/gen/postgres/ast"
+	"github.com/uthereal/scheme/gen/postgres/ast"
 )
 
 func TestTableNameToStructName(t *testing.T) {

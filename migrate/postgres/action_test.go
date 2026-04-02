@@ -3,7 +3,7 @@ package postgres_test
 import (
 	"testing"
 
-	"github.com/scheme/migrate/postgres"
+	"github.com/uthereal/scheme/migrate/postgres"
 )
 
 func TestMigrationAction_String(t *testing.T) {

@@ -11,7 +11,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/scheme/spec"
+	"github.com/uthereal/scheme/spec"
 )
 
 // Run executes the 'eject' command to unpack the embedded protobuf definitions.

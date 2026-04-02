@@ -6,9 +6,9 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/scheme/cmd/eject"
-	"github.com/scheme/cmd/gen"
-	"github.com/scheme/cmd/migrate"
+	"github.com/uthereal/scheme/cmd/eject"
+	"github.com/uthereal/scheme/cmd/gen"
+	"github.com/uthereal/scheme/cmd/migrate"
 )
 
 func printHelp() {

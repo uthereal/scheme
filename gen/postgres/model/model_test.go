@@ -3,10 +3,10 @@ package model_test
 import (
 	"testing"
 
-	"github.com/scheme/gen"
-	"github.com/scheme/gen/postgres/model"
-	"github.com/scheme/genproto/spec/core"
-	"github.com/scheme/genproto/spec/postgres"
+	"github.com/uthereal/scheme/gen"
+	"github.com/uthereal/scheme/gen/postgres/model"
+	"github.com/uthereal/scheme/genproto/spec/core"
+	"github.com/uthereal/scheme/genproto/spec/postgres"
 )
 
 func TestGenerateModels(t *testing.T) {

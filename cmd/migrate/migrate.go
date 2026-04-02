@@ -10,10 +10,10 @@ import (
 	"os"
 
 	_ "github.com/lib/pq"
-	"github.com/scheme/genproto/spec"
-	"github.com/scheme/genproto/spec/core"
+	"github.com/uthereal/scheme/genproto/spec"
+	"github.com/uthereal/scheme/genproto/spec/core"
 
-	"github.com/scheme/migrate/postgres"
+	"github.com/uthereal/scheme/migrate/postgres"
 	"google.golang.org/protobuf/encoding/prototext"
 )
 

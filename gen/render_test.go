@@ -4,7 +4,7 @@ import (
 	"testing"
 	"text/template"
 
-	"github.com/scheme/gen"
+	"github.com/uthereal/scheme/gen"
 )
 
 func TestRenderSource(t *testing.T) {
