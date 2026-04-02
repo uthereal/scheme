@@ -27,18 +27,18 @@ type Column struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// The physical name of the column as it appears in the database.
 	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	// The previous name of this object, used to issue RENAME commands instead of DROP/CREATE.
+	NamePrevious string `protobuf:"bytes,2,opt,name=name_previous,json=namePrevious,proto3" json:"name_previous,omitempty"`
 	// The specific PostgreSQL data type of the column, including optional parameters
 	// like precision, scale, or length.
-	Type *DataType `protobuf:"bytes,2,opt,name=type,proto3" json:"type,omitempty"`
+	Type *DataType `protobuf:"bytes,3,opt,name=type,proto3" json:"type,omitempty"`
 	// Indicates whether the column is allowed to store NULL values.
-	IsNullable bool `protobuf:"varint,3,opt,name=is_nullable,json=isNullable,proto3" json:"is_nullable,omitempty"`
+	IsNullable bool `protobuf:"varint,4,opt,name=is_nullable,json=isNullable,proto3" json:"is_nullable,omitempty"`
 	// The default value expression applied if no value is provided during insertion
 	// (e.g., 'now()', '0', '"untitled"').
-	DefaultValue string `protobuf:"bytes,4,opt,name=default_value,json=defaultValue,proto3" json:"default_value,omitempty"`
+	DefaultValue string `protobuf:"bytes,5,opt,name=default_value,json=defaultValue,proto3" json:"default_value,omitempty"`
 	// Auto-increment sequence configuration (e.g., GENERATED AS IDENTITY).
-	AutoIncrement *shared.AutoIncrement `protobuf:"bytes,5,opt,name=auto_increment,json=autoIncrement,proto3" json:"auto_increment,omitempty"`
-	// The previous name of this object, used to issue RENAME commands instead of DROP/CREATE.
-	NamePrevious  string `protobuf:"bytes,6,opt,name=name_previous,json=namePrevious,proto3" json:"name_previous,omitempty"`
+	AutoIncrement *shared.AutoIncrement `protobuf:"bytes,6,opt,name=auto_increment,json=autoIncrement,proto3" json:"auto_increment,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -80,6 +80,13 @@ func (x *Column) GetName() string {
 	return ""
 }
 
+func (x *Column) GetNamePrevious() string {
+	if x != nil {
+		return x.NamePrevious
+	}
+	return ""
+}
+
 func (x *Column) GetType() *DataType {
 	if x != nil {
 		return x.Type
@@ -108,26 +115,19 @@ func (x *Column) GetAutoIncrement() *shared.AutoIncrement {
 	return nil
 }
 
-func (x *Column) GetNamePrevious() string {
-	if x != nil {
-		return x.NamePrevious
-	}
-	return ""
-}
-
 var File_postgres_column_proto protoreflect.FileDescriptor
 
 const file_postgres_column_proto_rawDesc = "" +
 	"\n" +
 	"\x15postgres/column.proto\x12\bpostgres\x1a\x18postgres/data_type.proto\x1a core/shared/auto_increment.proto\"\xf2\x01\n" +
 	"\x06Column\x12\x12\n" +
-	"\x04name\x18\x01 \x01(\tR\x04name\x12&\n" +
-	"\x04type\x18\x02 \x01(\v2\x12.postgres.DataTypeR\x04type\x12\x1f\n" +
-	"\vis_nullable\x18\x03 \x01(\bR\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12#\n" +
+	"\rname_previous\x18\x02 \x01(\tR\fnamePrevious\x12&\n" +
+	"\x04type\x18\x03 \x01(\v2\x12.postgres.DataTypeR\x04type\x12\x1f\n" +
+	"\vis_nullable\x18\x04 \x01(\bR\n" +
 	"isNullable\x12#\n" +
-	"\rdefault_value\x18\x04 \x01(\tR\fdefaultValue\x12A\n" +
-	"\x0eauto_increment\x18\x05 \x01(\v2\x1a.core.shared.AutoIncrementR\rautoIncrement\x12#\n" +
-	"\rname_previous\x18\x06 \x01(\tR\fnamePreviousB\x89\x01\n" +
+	"\rdefault_value\x18\x05 \x01(\tR\fdefaultValue\x12A\n" +
+	"\x0eauto_increment\x18\x06 \x01(\v2\x1a.core.shared.AutoIncrementR\rautoIncrementB\x89\x01\n" +
 	"\fcom.postgresB\vColumnProtoP\x01Z,github.com/uthereal/scheme/genproto/postgres\xa2\x02\x03PXX\xaa\x02\bPostgres\xca\x02\bPostgres\xe2\x02\x14Postgres\\GPBMetadata\xea\x02\bPostgresb\x06proto3"
 
 var (

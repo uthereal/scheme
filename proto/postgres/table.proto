@@ -17,31 +17,32 @@ message Table {
   // The physical name of the table as it appears in the database.
   string name = 1;
   
+  // The previous name of this object, used to issue RENAME commands instead of DROP/CREATE.
+  string name_previous = 2;
+  
   // The structural columns defined physically within the table.
-  repeated Column columns = 2;
+  repeated Column columns = 3;
   
   // An ordered list of column names that compose the primary key constraint of the table.
-  repeated string primary_keys = 3;
+  repeated string primary_keys = 4;
   
   // Performance indexes applied to the table.
-  repeated Index indexes = 4;
+  repeated Index indexes = 5;
   
   // Strictly enforced referential foreign keys linking to other tables.
-  repeated core.shared.ForeignKey foreign_keys = 5;
+  repeated core.shared.ForeignKey foreign_keys = 6;
   
   // Custom check constraints for explicit data validation rules.
-  repeated CheckConstraint checks = 6;
+  repeated CheckConstraint checks = 7;
   
   // Derived or computed columns, mapped to GENERATED ALWAYS AS or 
   // purely application-level computed fields.
-  repeated VirtualColumn virtual_columns = 7;
+  repeated VirtualColumn virtual_columns = 8;
   
   // Non-enforced relational mappings (virtual foreign keys). Used to instruct 
   // the ORM code generator without creating physical database constraints.
-  repeated core.shared.VirtualForeignKey virtual_foreign_keys = 8;
+  repeated core.shared.VirtualForeignKey virtual_foreign_keys = 9;
   
   // Pure relational linkages used exclusively for eager-loading and ORM traversal.
-  repeated core.shared.Relation relations = 9;
-  // The previous name of this object, used to issue RENAME commands instead of DROP/CREATE.
-  string name_previous = 10;
+  repeated core.shared.Relation relations = 10;
 }

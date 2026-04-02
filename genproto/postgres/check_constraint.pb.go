@@ -28,18 +28,18 @@ type CheckConstraint struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// A unique identifier for the check constraint.
 	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	// The previous name of this object, used to issue RENAME commands instead of DROP/CREATE.
+	NamePrevious string `protobuf:"bytes,2,opt,name=name_previous,json=namePrevious,proto3" json:"name_previous,omitempty"`
 	// The primary column this check constraint applies to.
 	// (Note: The predicate itself may reference multiple columns for table-level checks).
-	Column string `protobuf:"bytes,2,opt,name=column,proto3" json:"column,omitempty"`
+	Column string `protobuf:"bytes,3,opt,name=column,proto3" json:"column,omitempty"`
 	// The boolean SQL expression that must evaluate to true or unknown (e.g., 'price > 0').
-	Predicate string `protobuf:"bytes,3,opt,name=predicate,proto3" json:"predicate,omitempty"`
+	Predicate string `protobuf:"bytes,4,opt,name=predicate,proto3" json:"predicate,omitempty"`
 	// Controls when the check constraint is validated during a transaction.
-	Deferrable shared.DeferrableState `protobuf:"varint,4,opt,name=deferrable,proto3,enum=core.shared.DeferrableState" json:"deferrable,omitempty"`
+	Deferrable shared.DeferrableState `protobuf:"varint,5,opt,name=deferrable,proto3,enum=core.shared.DeferrableState" json:"deferrable,omitempty"`
 	// If true, the constraint is not automatically inherited by child tables or partitions
 	// (PostgreSQL-specific 'NO INHERIT' clause).
-	NoInherit bool `protobuf:"varint,5,opt,name=no_inherit,json=noInherit,proto3" json:"no_inherit,omitempty"`
-	// The previous name of this object, used to issue RENAME commands instead of DROP/CREATE.
-	NamePrevious  string `protobuf:"bytes,6,opt,name=name_previous,json=namePrevious,proto3" json:"name_previous,omitempty"`
+	NoInherit     bool `protobuf:"varint,6,opt,name=no_inherit,json=noInherit,proto3" json:"no_inherit,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -81,6 +81,13 @@ func (x *CheckConstraint) GetName() string {
 	return ""
 }
 
+func (x *CheckConstraint) GetNamePrevious() string {
+	if x != nil {
+		return x.NamePrevious
+	}
+	return ""
+}
+
 func (x *CheckConstraint) GetColumn() string {
 	if x != nil {
 		return x.Column
@@ -109,28 +116,21 @@ func (x *CheckConstraint) GetNoInherit() bool {
 	return false
 }
 
-func (x *CheckConstraint) GetNamePrevious() string {
-	if x != nil {
-		return x.NamePrevious
-	}
-	return ""
-}
-
 var File_postgres_check_constraint_proto protoreflect.FileDescriptor
 
 const file_postgres_check_constraint_proto_rawDesc = "" +
 	"\n" +
 	"\x1fpostgres/check_constraint.proto\x12\bpostgres\x1a\"core/shared/deferrable_state.proto\"\xdd\x01\n" +
 	"\x0fCheckConstraint\x12\x12\n" +
-	"\x04name\x18\x01 \x01(\tR\x04name\x12\x16\n" +
-	"\x06column\x18\x02 \x01(\tR\x06column\x12\x1c\n" +
-	"\tpredicate\x18\x03 \x01(\tR\tpredicate\x12<\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12#\n" +
+	"\rname_previous\x18\x02 \x01(\tR\fnamePrevious\x12\x16\n" +
+	"\x06column\x18\x03 \x01(\tR\x06column\x12\x1c\n" +
+	"\tpredicate\x18\x04 \x01(\tR\tpredicate\x12<\n" +
 	"\n" +
-	"deferrable\x18\x04 \x01(\x0e2\x1c.core.shared.DeferrableStateR\n" +
+	"deferrable\x18\x05 \x01(\x0e2\x1c.core.shared.DeferrableStateR\n" +
 	"deferrable\x12\x1d\n" +
 	"\n" +
-	"no_inherit\x18\x05 \x01(\bR\tnoInherit\x12#\n" +
-	"\rname_previous\x18\x06 \x01(\tR\fnamePreviousB\x92\x01\n" +
+	"no_inherit\x18\x06 \x01(\bR\tnoInheritB\x92\x01\n" +
 	"\fcom.postgresB\x14CheckConstraintProtoP\x01Z,github.com/uthereal/scheme/genproto/postgres\xa2\x02\x03PXX\xaa\x02\bPostgres\xca\x02\bPostgres\xe2\x02\x14Postgres\\GPBMetadata\xea\x02\bPostgresb\x06proto3"
 
 var (

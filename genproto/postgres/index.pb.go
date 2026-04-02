@@ -27,29 +27,29 @@ type Index struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// A unique identifier for the index.
 	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	// The previous name of this object, used to issue RENAME commands instead of DROP/CREATE.
+	NamePrevious string `protobuf:"bytes,2,opt,name=name_previous,json=namePrevious,proto3" json:"name_previous,omitempty"`
 	// An ordered list of columns (or expressions) included in the index.
-	Columns []*IndexColumn `protobuf:"bytes,2,rep,name=columns,proto3" json:"columns,omitempty"`
+	Columns []*IndexColumn `protobuf:"bytes,3,rep,name=columns,proto3" json:"columns,omitempty"`
 	// If true, the index enforces a uniqueness constraint, preventing duplicate
 	// values across the indexed columns.
-	IsUnique bool `protobuf:"varint,3,opt,name=is_unique,json=isUnique,proto3" json:"is_unique,omitempty"`
+	IsUnique bool `protobuf:"varint,4,opt,name=is_unique,json=isUnique,proto3" json:"is_unique,omitempty"`
 	// Determines if NULL values are treated as distinct from one another.
 	// In PostgreSQL 15+, setting this to true (UNIQUE NULLS NOT DISTINCT) ensures
 	// that you cannot have multiple rows with NULL values in the unique index column.
-	NullsNotDistinct bool `protobuf:"varint,4,opt,name=nulls_not_distinct,json=nullsNotDistinct,proto3" json:"nulls_not_distinct,omitempty"`
+	NullsNotDistinct bool `protobuf:"varint,5,opt,name=nulls_not_distinct,json=nullsNotDistinct,proto3" json:"nulls_not_distinct,omitempty"`
 	// The algorithm used for the index (e.g., 'btree', 'hash', 'gin', 'gist').
 	// If left empty, the PostgreSQL engine will default to 'btree'.
-	AccessMethod string `protobuf:"bytes,5,opt,name=access_method,json=accessMethod,proto3" json:"access_method,omitempty"`
+	AccessMethod string `protobuf:"bytes,6,opt,name=access_method,json=accessMethod,proto3" json:"access_method,omitempty"`
 	// A boolean SQL expression that defines a partial index (e.g., 'active = true').
 	// Only rows that satisfy this predicate are included in the index structure.
-	Predicate string `protobuf:"bytes,6,opt,name=predicate,proto3" json:"predicate,omitempty"`
+	Predicate string `protobuf:"bytes,7,opt,name=predicate,proto3" json:"predicate,omitempty"`
 	// Additional payload columns to append to the index (creating a covering index).
 	// These columns aren't used for search/sorting but can be read directly from the
 	// index without visiting the underlying table heap.
-	IncludeColumns []string `protobuf:"bytes,7,rep,name=include_columns,json=includeColumns,proto3" json:"include_columns,omitempty"`
+	IncludeColumns []string `protobuf:"bytes,8,rep,name=include_columns,json=includeColumns,proto3" json:"include_columns,omitempty"`
 	// Storage location for the index, if the database utilizes custom tablespaces.
-	Tablespace string `protobuf:"bytes,8,opt,name=tablespace,proto3" json:"tablespace,omitempty"`
-	// The previous name of this object, used to issue RENAME commands instead of DROP/CREATE.
-	NamePrevious  string `protobuf:"bytes,9,opt,name=name_previous,json=namePrevious,proto3" json:"name_previous,omitempty"`
+	Tablespace    string `protobuf:"bytes,9,opt,name=tablespace,proto3" json:"tablespace,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -87,6 +87,13 @@ func (*Index) Descriptor() ([]byte, []int) {
 func (x *Index) GetName() string {
 	if x != nil {
 		return x.Name
+	}
+	return ""
+}
+
+func (x *Index) GetNamePrevious() string {
+	if x != nil {
+		return x.NamePrevious
 	}
 	return ""
 }
@@ -140,30 +147,23 @@ func (x *Index) GetTablespace() string {
 	return ""
 }
 
-func (x *Index) GetNamePrevious() string {
-	if x != nil {
-		return x.NamePrevious
-	}
-	return ""
-}
-
 var File_postgres_index_proto protoreflect.FileDescriptor
 
 const file_postgres_index_proto_rawDesc = "" +
 	"\n" +
 	"\x14postgres/index.proto\x12\bpostgres\x1a\x1bpostgres/index_column.proto\"\xc8\x02\n" +
 	"\x05Index\x12\x12\n" +
-	"\x04name\x18\x01 \x01(\tR\x04name\x12/\n" +
-	"\acolumns\x18\x02 \x03(\v2\x15.postgres.IndexColumnR\acolumns\x12\x1b\n" +
-	"\tis_unique\x18\x03 \x01(\bR\bisUnique\x12,\n" +
-	"\x12nulls_not_distinct\x18\x04 \x01(\bR\x10nullsNotDistinct\x12#\n" +
-	"\raccess_method\x18\x05 \x01(\tR\faccessMethod\x12\x1c\n" +
-	"\tpredicate\x18\x06 \x01(\tR\tpredicate\x12'\n" +
-	"\x0finclude_columns\x18\a \x03(\tR\x0eincludeColumns\x12\x1e\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12#\n" +
+	"\rname_previous\x18\x02 \x01(\tR\fnamePrevious\x12/\n" +
+	"\acolumns\x18\x03 \x03(\v2\x15.postgres.IndexColumnR\acolumns\x12\x1b\n" +
+	"\tis_unique\x18\x04 \x01(\bR\bisUnique\x12,\n" +
+	"\x12nulls_not_distinct\x18\x05 \x01(\bR\x10nullsNotDistinct\x12#\n" +
+	"\raccess_method\x18\x06 \x01(\tR\faccessMethod\x12\x1c\n" +
+	"\tpredicate\x18\a \x01(\tR\tpredicate\x12'\n" +
+	"\x0finclude_columns\x18\b \x03(\tR\x0eincludeColumns\x12\x1e\n" +
 	"\n" +
-	"tablespace\x18\b \x01(\tR\n" +
-	"tablespace\x12#\n" +
-	"\rname_previous\x18\t \x01(\tR\fnamePreviousB\x88\x01\n" +
+	"tablespace\x18\t \x01(\tR\n" +
+	"tablespaceB\x88\x01\n" +
 	"\fcom.postgresB\n" +
 	"IndexProtoP\x01Z,github.com/uthereal/scheme/genproto/postgres\xa2\x02\x03PXX\xaa\x02\bPostgres\xca\x02\bPostgres\xe2\x02\x14Postgres\\GPBMetadata\xea\x02\bPostgresb\x06proto3"
 

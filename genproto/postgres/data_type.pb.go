@@ -1860,14 +1860,14 @@ func (*BooleanType) Descriptor() ([]byte, []int) {
 // Enumerated Types
 type EnumType struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// The database schema this Enum physically resides in (e.g., 'public', 'auth').
+	// The database schema this Enum Type physically resides in (e.g., 'public').
 	Schema string `protobuf:"bytes,3,opt,name=schema,proto3" json:"schema,omitempty"`
-	// The name of the custom PostgreSQL ENUM type.
+	// The unique identifier of the ENUM type.
 	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	// The explicitly allowed string values for this ENUM type.
-	Values []string `protobuf:"bytes,2,rep,name=values,proto3" json:"values,omitempty"`
 	// The previous name of this object, used to issue RENAME commands instead of DROP/CREATE.
-	NamePrevious  string `protobuf:"bytes,4,opt,name=name_previous,json=namePrevious,proto3" json:"name_previous,omitempty"`
+	NamePrevious string `protobuf:"bytes,2,opt,name=name_previous,json=namePrevious,proto3" json:"name_previous,omitempty"`
+	// The explicitly allowed string values for this ENUM type.
+	Values        []string `protobuf:"bytes,4,rep,name=values,proto3" json:"values,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1916,18 +1916,18 @@ func (x *EnumType) GetName() string {
 	return ""
 }
 
-func (x *EnumType) GetValues() []string {
-	if x != nil {
-		return x.Values
-	}
-	return nil
-}
-
 func (x *EnumType) GetNamePrevious() string {
 	if x != nil {
 		return x.NamePrevious
 	}
 	return ""
+}
+
+func (x *EnumType) GetValues() []string {
+	if x != nil {
+		return x.Values
+	}
+	return nil
 }
 
 // Geometric Types
@@ -2735,9 +2735,9 @@ type CompositeType struct {
 	state  protoimpl.MessageState `protogen:"open.v1"`
 	Schema string                 `protobuf:"bytes,3,opt,name=schema,proto3" json:"schema,omitempty"`
 	Name   string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	Fields []*CompositeField      `protobuf:"bytes,2,rep,name=fields,proto3" json:"fields,omitempty"`
 	// The previous name of this object, used to issue RENAME commands instead of DROP/CREATE.
-	NamePrevious  string `protobuf:"bytes,4,opt,name=name_previous,json=namePrevious,proto3" json:"name_previous,omitempty"`
+	NamePrevious  string            `protobuf:"bytes,2,opt,name=name_previous,json=namePrevious,proto3" json:"name_previous,omitempty"`
+	Fields        []*CompositeField `protobuf:"bytes,4,rep,name=fields,proto3" json:"fields,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2786,18 +2786,18 @@ func (x *CompositeType) GetName() string {
 	return ""
 }
 
-func (x *CompositeType) GetFields() []*CompositeField {
-	if x != nil {
-		return x.Fields
-	}
-	return nil
-}
-
 func (x *CompositeType) GetNamePrevious() string {
 	if x != nil {
 		return x.NamePrevious
 	}
 	return ""
+}
+
+func (x *CompositeType) GetFields() []*CompositeField {
+	if x != nil {
+		return x.Fields
+	}
+	return nil
 }
 
 type CompositeField struct {
@@ -3129,12 +3129,12 @@ type DomainType struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// The database schema this Domain Type physically resides in (e.g., 'public').
 	Schema string `protobuf:"bytes,3,opt,name=schema,proto3" json:"schema,omitempty"`
-	// The custom name of the Domain.
+	// The unique identifier of the domain type.
 	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	// The underlying PostgreSQL base type that this domain aliases.
-	BaseType *DataType `protobuf:"bytes,2,opt,name=base_type,json=baseType,proto3" json:"base_type,omitempty"`
 	// The previous name of this object, used to issue RENAME commands instead of DROP/CREATE.
-	NamePrevious  string `protobuf:"bytes,4,opt,name=name_previous,json=namePrevious,proto3" json:"name_previous,omitempty"`
+	NamePrevious string `protobuf:"bytes,2,opt,name=name_previous,json=namePrevious,proto3" json:"name_previous,omitempty"`
+	// The underlying PostgreSQL base type that this domain aliases.
+	BaseType      *DataType `protobuf:"bytes,4,opt,name=base_type,json=baseType,proto3" json:"base_type,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3183,18 +3183,18 @@ func (x *DomainType) GetName() string {
 	return ""
 }
 
-func (x *DomainType) GetBaseType() *DataType {
-	if x != nil {
-		return x.BaseType
-	}
-	return nil
-}
-
 func (x *DomainType) GetNamePrevious() string {
 	if x != nil {
 		return x.NamePrevious
 	}
 	return ""
+}
+
+func (x *DomainType) GetBaseType() *DataType {
+	if x != nil {
+		return x.BaseType
+	}
+	return nil
 }
 
 type OidType struct {
@@ -3403,9 +3403,9 @@ const file_postgres_data_type_proto_rawDesc = "" +
 	"\vBooleanType\"s\n" +
 	"\bEnumType\x12\x16\n" +
 	"\x06schema\x18\x03 \x01(\tR\x06schema\x12\x12\n" +
-	"\x04name\x18\x01 \x01(\tR\x04name\x12\x16\n" +
-	"\x06values\x18\x02 \x03(\tR\x06values\x12#\n" +
-	"\rname_previous\x18\x04 \x01(\tR\fnamePrevious\"\v\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12#\n" +
+	"\rname_previous\x18\x02 \x01(\tR\fnamePrevious\x12\x16\n" +
+	"\x06values\x18\x04 \x03(\tR\x06values\"\v\n" +
 	"\tPointType\"\n" +
 	"\n" +
 	"\bLineType\"\n" +
@@ -3446,9 +3446,9 @@ const file_postgres_data_type_proto_rawDesc = "" +
 	"\v_dimensions\"\x92\x01\n" +
 	"\rCompositeType\x12\x16\n" +
 	"\x06schema\x18\x03 \x01(\tR\x06schema\x12\x12\n" +
-	"\x04name\x18\x01 \x01(\tR\x04name\x120\n" +
-	"\x06fields\x18\x02 \x03(\v2\x18.postgres.CompositeFieldR\x06fields\x12#\n" +
-	"\rname_previous\x18\x04 \x01(\tR\fnamePrevious\"L\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12#\n" +
+	"\rname_previous\x18\x02 \x01(\tR\fnamePrevious\x120\n" +
+	"\x06fields\x18\x04 \x03(\v2\x18.postgres.CompositeFieldR\x06fields\"L\n" +
 	"\x0eCompositeField\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12&\n" +
 	"\x04type\x18\x02 \x01(\v2\x12.postgres.DataTypeR\x04type\"\x0f\n" +
@@ -3464,9 +3464,9 @@ const file_postgres_data_type_proto_rawDesc = "" +
 	"\n" +
 	"DomainType\x12\x16\n" +
 	"\x06schema\x18\x03 \x01(\tR\x06schema\x12\x12\n" +
-	"\x04name\x18\x01 \x01(\tR\x04name\x12/\n" +
-	"\tbase_type\x18\x02 \x01(\v2\x12.postgres.DataTypeR\bbaseType\x12#\n" +
-	"\rname_previous\x18\x04 \x01(\tR\fnamePrevious\"\t\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12#\n" +
+	"\rname_previous\x18\x02 \x01(\tR\fnamePrevious\x12/\n" +
+	"\tbase_type\x18\x04 \x01(\v2\x12.postgres.DataTypeR\bbaseType\"\t\n" +
 	"\aOidType\"\v\n" +
 	"\tPgLsnTypeB\x8b\x01\n" +
 	"\fcom.postgresB\rDataTypeProtoP\x01Z,github.com/uthereal/scheme/genproto/postgres\xa2\x02\x03PXX\xaa\x02\bPostgres\xca\x02\bPostgres\xe2\x02\x14Postgres\\GPBMetadata\xea\x02\bPostgresb\x06proto3"

@@ -11,8 +11,9 @@ message PostgresSchema {
   // The unique name of the schema namespace (e.g., 'public', 'auth', 'tenant_a').
   string name = 1;
   
-  // The collection of logical tables contained specifically within this schema namespace.
-  repeated Table tables = 2;
   // The previous name of this object, used to issue RENAME commands instead of DROP/CREATE.
-  string name_previous = 3;
+  string name_previous = 2;
+  
+  // The collection of logical tables contained specifically within this schema namespace.
+  repeated Table tables = 3;
 }

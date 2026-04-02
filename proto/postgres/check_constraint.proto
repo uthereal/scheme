@@ -9,20 +9,21 @@ import "core/shared/deferrable_state.proto";
 message CheckConstraint {
   // A unique identifier for the check constraint.
   string name = 1;
+  
+  // The previous name of this object, used to issue RENAME commands instead of DROP/CREATE.
+  string name_previous = 2;
 
   // The primary column this check constraint applies to.
   // (Note: The predicate itself may reference multiple columns for table-level checks).
-  string column = 2;
+  string column = 3;
 
   // The boolean SQL expression that must evaluate to true or unknown (e.g., 'price > 0').
-  string predicate = 3;
+  string predicate = 4;
 
   // Controls when the check constraint is validated during a transaction.
-  core.shared.DeferrableState deferrable = 4;
+  core.shared.DeferrableState deferrable = 5;
 
   // If true, the constraint is not automatically inherited by child tables or partitions
   // (PostgreSQL-specific 'NO INHERIT' clause).
-  bool no_inherit = 5;
-  // The previous name of this object, used to issue RENAME commands instead of DROP/CREATE.
-  string name_previous = 6;
+  bool no_inherit = 6;
 }

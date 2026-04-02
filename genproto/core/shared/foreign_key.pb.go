@@ -27,18 +27,20 @@ type ForeignKey struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// A unique identifier for the foreign key constraint.
 	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	// The previous name of this object, used to issue RENAME commands instead of DROP/CREATE.
+	NamePrevious string `protobuf:"bytes,2,opt,name=name_previous,json=namePrevious,proto3" json:"name_previous,omitempty"`
 	// The fully qualified target table this foreign key points to
 	// (e.g. 'public.users' or 'users').
-	TargetTable string `protobuf:"bytes,2,opt,name=target_table,json=targetTable,proto3" json:"target_table,omitempty"`
+	TargetTable string `protobuf:"bytes,3,opt,name=target_table,json=targetTable,proto3" json:"target_table,omitempty"`
 	// Mappings of local source columns to the referenced target columns.
 	// Multiple mappings indicate a composite foreign key constraint.
-	Columns []*ForeignKeyColumnMapping `protobuf:"bytes,3,rep,name=columns,proto3" json:"columns,omitempty"`
+	Columns []*ForeignKeyColumnMapping `protobuf:"bytes,4,rep,name=columns,proto3" json:"columns,omitempty"`
 	// The referential action triggered when the referenced row is deleted.
-	OnDelete ForeignKeyAction `protobuf:"varint,4,opt,name=on_delete,json=onDelete,proto3,enum=core.shared.ForeignKeyAction" json:"on_delete,omitempty"`
+	OnDelete ForeignKeyAction `protobuf:"varint,5,opt,name=on_delete,json=onDelete,proto3,enum=core.shared.ForeignKeyAction" json:"on_delete,omitempty"`
 	// The referential action triggered when the referenced row is updated.
-	OnUpdate ForeignKeyAction `protobuf:"varint,5,opt,name=on_update,json=onUpdate,proto3,enum=core.shared.ForeignKeyAction" json:"on_update,omitempty"`
+	OnUpdate ForeignKeyAction `protobuf:"varint,6,opt,name=on_update,json=onUpdate,proto3,enum=core.shared.ForeignKeyAction" json:"on_update,omitempty"`
 	// Controls when the foreign key constraint is validated during a transaction.
-	Deferrable    DeferrableState `protobuf:"varint,6,opt,name=deferrable,proto3,enum=core.shared.DeferrableState" json:"deferrable,omitempty"`
+	Deferrable    DeferrableState `protobuf:"varint,7,opt,name=deferrable,proto3,enum=core.shared.DeferrableState" json:"deferrable,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -76,6 +78,13 @@ func (*ForeignKey) Descriptor() ([]byte, []int) {
 func (x *ForeignKey) GetName() string {
 	if x != nil {
 		return x.Name
+	}
+	return ""
+}
+
+func (x *ForeignKey) GetNamePrevious() string {
+	if x != nil {
+		return x.NamePrevious
 	}
 	return ""
 }
@@ -119,16 +128,17 @@ var File_core_shared_foreign_key_proto protoreflect.FileDescriptor
 
 const file_core_shared_foreign_key_proto_rawDesc = "" +
 	"\n" +
-	"\x1dcore/shared/foreign_key.proto\x12\vcore.shared\x1a$core/shared/foreign_key_action.proto\x1a\"core/shared/deferrable_state.proto\x1a,core/shared/foreign_key_column_mapping.proto\"\xb9\x02\n" +
+	"\x1dcore/shared/foreign_key.proto\x12\vcore.shared\x1a$core/shared/foreign_key_action.proto\x1a\"core/shared/deferrable_state.proto\x1a,core/shared/foreign_key_column_mapping.proto\"\xde\x02\n" +
 	"\n" +
 	"ForeignKey\x12\x12\n" +
-	"\x04name\x18\x01 \x01(\tR\x04name\x12!\n" +
-	"\ftarget_table\x18\x02 \x01(\tR\vtargetTable\x12>\n" +
-	"\acolumns\x18\x03 \x03(\v2$.core.shared.ForeignKeyColumnMappingR\acolumns\x12:\n" +
-	"\ton_delete\x18\x04 \x01(\x0e2\x1d.core.shared.ForeignKeyActionR\bonDelete\x12:\n" +
-	"\ton_update\x18\x05 \x01(\x0e2\x1d.core.shared.ForeignKeyActionR\bonUpdate\x12<\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12#\n" +
+	"\rname_previous\x18\x02 \x01(\tR\fnamePrevious\x12!\n" +
+	"\ftarget_table\x18\x03 \x01(\tR\vtargetTable\x12>\n" +
+	"\acolumns\x18\x04 \x03(\v2$.core.shared.ForeignKeyColumnMappingR\acolumns\x12:\n" +
+	"\ton_delete\x18\x05 \x01(\x0e2\x1d.core.shared.ForeignKeyActionR\bonDelete\x12:\n" +
+	"\ton_update\x18\x06 \x01(\x0e2\x1d.core.shared.ForeignKeyActionR\bonUpdate\x12<\n" +
 	"\n" +
-	"deferrable\x18\x06 \x01(\x0e2\x1c.core.shared.DeferrableStateR\n" +
+	"deferrable\x18\a \x01(\x0e2\x1c.core.shared.DeferrableStateR\n" +
 	"deferrableB\xa0\x01\n" +
 	"\x0fcom.core.sharedB\x0fForeignKeyProtoP\x01Z/github.com/uthereal/scheme/genproto/core/shared\xa2\x02\x03CSX\xaa\x02\vCore.Shared\xca\x02\vCore\\Shared\xe2\x02\x17Core\\Shared\\GPBMetadata\xea\x02\fCore::Sharedb\x06proto3"
 

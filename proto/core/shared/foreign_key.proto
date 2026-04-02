@@ -12,20 +12,23 @@ message ForeignKey {
   // A unique identifier for the foreign key constraint.
   string name = 1;
   
+  // The previous name of this object, used to issue RENAME commands instead of DROP/CREATE.
+  string name_previous = 2;
+  
   // The fully qualified target table this foreign key points to 
   // (e.g. 'public.users' or 'users').
-  string target_table = 2;
+  string target_table = 3;
   
   // Mappings of local source columns to the referenced target columns.
   // Multiple mappings indicate a composite foreign key constraint.
-  repeated ForeignKeyColumnMapping columns = 3;
+  repeated ForeignKeyColumnMapping columns = 4;
   
   // The referential action triggered when the referenced row is deleted.
-  ForeignKeyAction on_delete = 4;
+  ForeignKeyAction on_delete = 5;
   
   // The referential action triggered when the referenced row is updated.
-  ForeignKeyAction on_update = 5;
+  ForeignKeyAction on_update = 6;
   
   // Controls when the foreign key constraint is validated during a transaction.
-  DeferrableState deferrable = 6;
+  DeferrableState deferrable = 7;
 }

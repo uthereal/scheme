@@ -9,20 +9,21 @@ import "core/shared/auto_increment.proto";
 message Column {
   // The physical name of the column as it appears in the database.
   string name = 1;
+  
+  // The previous name of this object, used to issue RENAME commands instead of DROP/CREATE.
+  string name_previous = 2;
 
   // The specific PostgreSQL data type of the column, including optional parameters
   // like precision, scale, or length.
-  DataType type = 2;
+  DataType type = 3;
 
   // Indicates whether the column is allowed to store NULL values.
-  bool is_nullable = 3;
+  bool is_nullable = 4;
 
   // The default value expression applied if no value is provided during insertion
   // (e.g., 'now()', '0', '"untitled"').
-  string default_value = 4;
+  string default_value = 5;
 
   // Auto-increment sequence configuration (e.g., GENERATED AS IDENTITY).
-  core.shared.AutoIncrement auto_increment = 5;
-  // The previous name of this object, used to issue RENAME commands instead of DROP/CREATE.
-  string name_previous = 6;
+  core.shared.AutoIncrement auto_increment = 6;
 }

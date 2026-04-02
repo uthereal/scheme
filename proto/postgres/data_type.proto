@@ -157,16 +157,17 @@ message BooleanType {}
 
 // Enumerated Types
 message EnumType {
-  // The database schema this Enum physically resides in (e.g., 'public', 'auth').
+  // The database schema this Enum Type physically resides in (e.g., 'public').
   string schema = 3;
-  
-  // The name of the custom PostgreSQL ENUM type.
+
+  // The unique identifier of the ENUM type.
   string name = 1;
-  
-  // The explicitly allowed string values for this ENUM type.
-  repeated string values = 2;
+
   // The previous name of this object, used to issue RENAME commands instead of DROP/CREATE.
-  string name_previous = 4;
+  string name_previous = 2;
+
+  // The explicitly allowed string values for this ENUM type.
+  repeated string values = 4;
 }
 
 // Geometric Types
@@ -222,9 +223,9 @@ message ArrayType {
 message CompositeType {
   string schema = 3;
   string name = 1;
-  repeated CompositeField fields = 2;
   // The previous name of this object, used to issue RENAME commands instead of DROP/CREATE.
-  string name_previous = 4;
+  string name_previous = 2;
+  repeated CompositeField fields = 4;
 }
 
 message CompositeField {
@@ -253,14 +254,15 @@ message CustomRangeType {
 message DomainType {
   // The database schema this Domain Type physically resides in (e.g., 'public').
   string schema = 3;
-  
-  // The custom name of the Domain.
+
+  // The unique identifier of the domain type.
   string name = 1;
-  
-  // The underlying PostgreSQL base type that this domain aliases.
-  DataType base_type = 2;
+
   // The previous name of this object, used to issue RENAME commands instead of DROP/CREATE.
-  string name_previous = 4;
+  string name_previous = 2;
+
+  // The underlying PostgreSQL base type that this domain aliases.
+  DataType base_type = 4;
 }
 
 message OidType {}

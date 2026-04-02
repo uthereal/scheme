@@ -1405,27 +1405,134 @@ func (d *Differ) planIndexes() error {
 }
 
 func (d *Differ) planForeignKeys() error {
-	for _, targetSchema := range d.target.GetSchemas() {
-		schemaName := targetSchema.GetName()
-		liveSchema, ok := d.live.Schemas[schemaName]
-		if !ok {
-			continue
-		}
+        for _, targetSchema := range d.target.GetSchemas() {
+                schemaName := targetSchema.GetName()
+                liveSchema, ok := d.live.Schemas[schemaName]
+                if !ok {
+                        continue
+                }
 
-		for _, targetTable := range targetSchema.GetTables() {
-			tableName := targetTable.GetName()
-			liveTable, ok := liveSchema.Tables[tableName]
-			if !ok {
-				continue
-			}
+                for _, targetTable := range targetSchema.GetTables() {
+                        tableName := targetTable.GetName()
+                        liveTable, ok := liveSchema.Tables[tableName]
+                        if !ok {
+                                continue
+                        }
 
-			targetFKMap := make(map[string]struct{})
-			for _, targetFK := range targetTable.GetForeignKeys() {
-				fkName := targetFK.GetName()
-				targetFKMap[fkName] = struct{}{}
+                        protected := make(map[string]struct{})
+                        var renames []renameOp
+                        targetFKMap := make(map[string]struct{})
 
-				_, exists := liveTable.ForeignKeys[fkName]
-				if !exists {
+                        for _, targetFK := range targetTable.GetForeignKeys() {
+                                fkName := targetFK.GetName()
+                                pName := targetFK.GetNamePrevious()
+                                targetFKMap[fkName] = struct{}{}
+
+                                if pName != "" && pName != fkName {
+                                        protected[pName] = struct{}{}
+                                        renames = append(renames, renameOp{
+                                                Prev: pName, New: fkName, Ref: targetFK,
+                                        })
+                                } else {
+                                        protected[fkName] = struct{}{}
+                                }
+                        }
+
+                        var liveFKNames []string
+                        for k := range liveTable.ForeignKeys {
+                                liveFKNames = append(liveFKNames, k)
+                        }
+                        sort.Strings(liveFKNames)
+
+                        for _, liveFKName := range liveFKNames {
+                                _, exists := protected[liveFKName]
+                                if !exists {
+                                        sqlStr := fmt.Sprintf(
+                                                "ALTER TABLE %q.%q DROP CONSTRAINT %q;",
+                                                schemaName, tableName, liveFKName,
+                                        )
+                                        d.Actions = append(d.Actions, MigrationAction{
+                                                Type:          ActionTypeDrop,
+                                                ObjectType:    ObjectForeignKey,
+                                                Schema:        schemaName,
+                                                Name:          liveFKName,
+                                                SQL:           sqlStr,
+                                                IsDestructive: false,
+                                        })
+                                        delete(liveTable.ForeignKeys, liveFKName)
+                                }
+                        }
+
+                        for len(renames) > 0 {
+                                progress := false
+                                for i := 0; i < len(renames); i++ {
+                                        op := renames[i]
+                                        _, exists := liveTable.ForeignKeys[op.New]
+                                        if !exists {
+                                                sqlStr := fmt.Sprintf(
+                                                        "ALTER TABLE %q.%q RENAME CONSTRAINT %q TO %q;",
+                                                        schemaName, tableName, op.Prev, op.New,
+                                                )
+                                                d.Actions = append(d.Actions, MigrationAction{
+                                                        Type:       ActionTypeRename,
+                                                        ObjectType: ObjectForeignKey,
+                                                        Schema:     schemaName,
+                                                        Name:       op.New,
+                                                        SQL:        sqlStr,
+                                                })
+
+                                                liveTable.ForeignKeys[op.New] = liveTable.ForeignKeys[op.Prev]
+                                                liveTable.ForeignKeys[op.New].Name = op.New
+                                                delete(liveTable.ForeignKeys, op.Prev)
+
+                                                renames = append(renames[:i], renames[i+1:]...)
+                                                progress = true
+                                                break
+                                        }
+                                }
+                                if !progress {
+                                        var collisionOp *renameOp
+                                        for i := range renames {
+                                                isTargetInRenames := false
+                                                for j := range renames {
+                                                        if renames[j].Prev == renames[i].New {
+                                                                isTargetInRenames = true
+                                                                break
+                                                        }
+                                                }
+                                                if !isTargetInRenames {
+                                                        collisionOp = &renames[i]
+                                                        break
+                                                }
+                                        }
+                                        if collisionOp != nil {
+                                                return fmt.Errorf("foreign key rename collision -> %s", collisionOp.New)
+                                        }
+
+                                        op := renames[0]
+                                        tmpName := "scheme_tmp_fk_" + op.Prev
+                                        sqlStr := fmt.Sprintf(
+                                                "ALTER TABLE %q.%q RENAME CONSTRAINT %q TO %q;",
+                                                schemaName, tableName, op.Prev, tmpName,
+                                        )
+                                        d.Actions = append(d.Actions, MigrationAction{
+                                                Type:       ActionTypeRename,
+                                                ObjectType: ObjectForeignKey,
+                                                Schema:     schemaName,
+                                                Name:       tmpName,
+                                                SQL:        sqlStr,
+                                        })
+                                        renames[0].Prev = tmpName
+                                        liveTable.ForeignKeys[tmpName] = liveTable.ForeignKeys[op.Prev]
+                                        liveTable.ForeignKeys[tmpName].Name = tmpName
+                                        delete(liveTable.ForeignKeys, op.Prev)
+                                }
+                        }
+
+                        for _, targetFK := range targetTable.GetForeignKeys() {
+                                fkName := targetFK.GetName()
+                                _, exists := liveTable.ForeignKeys[fkName]
+                                if !exists {
 					var localCols strings.Builder
 					var targetCols strings.Builder
 
@@ -1444,23 +1551,50 @@ func (d *Differ) planForeignKeys() error {
 
 					targetTableRef := targetFK.GetTargetTable()
 					if !strings.Contains(targetTableRef, ".") {
-						targetTableRef = fmt.Sprintf(
-							"%q.%q", schemaName, targetTableRef,
-						)
+					        targetTableRef = fmt.Sprintf(
+					                "%q.%q", schemaName, targetTableRef,
+					        )
 					} else {
-						parts := strings.SplitN(targetTableRef, ".", 2)
-						targetTableRef = fmt.Sprintf(
-							"%q.%q", parts[0], parts[1],
-						)
+					        parts := strings.SplitN(targetTableRef, ".", 2)
+					        targetTableRef = fmt.Sprintf(
+					                "%q.%q", parts[0], parts[1],
+					        )
+					}
+
+					onUpdate := ""
+					switch targetFK.GetOnUpdate().String() {
+					case "FOREIGN_KEY_ACTION_NO_ACTION":
+					        onUpdate = " ON UPDATE NO ACTION"
+					case "FOREIGN_KEY_ACTION_RESTRICT":
+					        onUpdate = " ON UPDATE RESTRICT"
+					case "FOREIGN_KEY_ACTION_CASCADE":
+					        onUpdate = " ON UPDATE CASCADE"
+					case "FOREIGN_KEY_ACTION_SET_NULL":
+					        onUpdate = " ON UPDATE SET NULL"
+					case "FOREIGN_KEY_ACTION_SET_DEFAULT":
+					        onUpdate = " ON UPDATE SET DEFAULT"
+					}
+
+					onDelete := ""
+					switch targetFK.GetOnDelete().String() {
+					case "FOREIGN_KEY_ACTION_NO_ACTION":
+					        onDelete = " ON DELETE NO ACTION"
+					case "FOREIGN_KEY_ACTION_RESTRICT":
+					        onDelete = " ON DELETE RESTRICT"
+					case "FOREIGN_KEY_ACTION_CASCADE":
+					        onDelete = " ON DELETE CASCADE"
+					case "FOREIGN_KEY_ACTION_SET_NULL":
+					        onDelete = " ON DELETE SET NULL"
+					case "FOREIGN_KEY_ACTION_SET_DEFAULT":
+					        onDelete = " ON DELETE SET DEFAULT"
 					}
 
 					sqlStr := fmt.Sprintf(
-						`ALTER TABLE %q.%q ADD CONSTRAINT %q
-FOREIGN KEY (%s) REFERENCES %s (%s);`,
-						schemaName, tableName, fkName,
-						localCols.String(), targetTableRef, targetCols.String(),
+					        "ALTER TABLE %q.%q ADD CONSTRAINT %q FOREIGN KEY (%s) REFERENCES %s (%s)%s%s;",
+					        schemaName, tableName, fkName,
+					        localCols.String(), targetTableRef, targetCols.String(),
+					        onUpdate, onDelete,
 					)
-
 					d.Actions = append(d.Actions, MigrationAction{
 						Type:       ActionTypeCreate,
 						ObjectType: ObjectForeignKey,
@@ -1471,7 +1605,7 @@ FOREIGN KEY (%s) REFERENCES %s (%s);`,
 				}
 			}
 
-			var liveFKNames []string
+			liveFKNames = []string{}
 			for k := range liveTable.ForeignKeys {
 				liveFKNames = append(liveFKNames, k)
 			}

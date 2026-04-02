@@ -28,10 +28,10 @@ type PostgresSchema struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// The unique name of the schema namespace (e.g., 'public', 'auth', 'tenant_a').
 	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	// The collection of logical tables contained specifically within this schema namespace.
-	Tables []*Table `protobuf:"bytes,2,rep,name=tables,proto3" json:"tables,omitempty"`
 	// The previous name of this object, used to issue RENAME commands instead of DROP/CREATE.
-	NamePrevious  string `protobuf:"bytes,3,opt,name=name_previous,json=namePrevious,proto3" json:"name_previous,omitempty"`
+	NamePrevious string `protobuf:"bytes,2,opt,name=name_previous,json=namePrevious,proto3" json:"name_previous,omitempty"`
+	// The collection of logical tables contained specifically within this schema namespace.
+	Tables        []*Table `protobuf:"bytes,3,rep,name=tables,proto3" json:"tables,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -73,18 +73,18 @@ func (x *PostgresSchema) GetName() string {
 	return ""
 }
 
-func (x *PostgresSchema) GetTables() []*Table {
-	if x != nil {
-		return x.Tables
-	}
-	return nil
-}
-
 func (x *PostgresSchema) GetNamePrevious() string {
 	if x != nil {
 		return x.NamePrevious
 	}
 	return ""
+}
+
+func (x *PostgresSchema) GetTables() []*Table {
+	if x != nil {
+		return x.Tables
+	}
+	return nil
 }
 
 var File_postgres_schema_proto protoreflect.FileDescriptor
@@ -93,9 +93,9 @@ const file_postgres_schema_proto_rawDesc = "" +
 	"\n" +
 	"\x15postgres/schema.proto\x12\bpostgres\x1a\x14postgres/table.proto\"r\n" +
 	"\x0ePostgresSchema\x12\x12\n" +
-	"\x04name\x18\x01 \x01(\tR\x04name\x12'\n" +
-	"\x06tables\x18\x02 \x03(\v2\x0f.postgres.TableR\x06tables\x12#\n" +
-	"\rname_previous\x18\x03 \x01(\tR\fnamePreviousB\x89\x01\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12#\n" +
+	"\rname_previous\x18\x02 \x01(\tR\fnamePrevious\x12'\n" +
+	"\x06tables\x18\x03 \x03(\v2\x0f.postgres.TableR\x06tablesB\x89\x01\n" +
 	"\fcom.postgresB\vSchemaProtoP\x01Z,github.com/uthereal/scheme/genproto/postgres\xa2\x02\x03PXX\xaa\x02\bPostgres\xca\x02\bPostgres\xe2\x02\x14Postgres\\GPBMetadata\xea\x02\bPostgresb\x06proto3"
 
 var (

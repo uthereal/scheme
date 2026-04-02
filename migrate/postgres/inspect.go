@@ -421,8 +421,76 @@ func Inspect(ctx context.Context, db *sql.DB) (*LiveState, error) {
 	}
 	err = iRows.Err()
 	if err != nil {
-		return nil, fmt.Errorf("failed iterating indexes -> %w", err)
+	        return nil, fmt.Errorf("failed iterating indexes -> %w", err)
+	}
+
+	fkQuery := `
+	        SELECT
+	            tc.table_schema,
+	            tc.table_name,
+	            tc.constraint_name,
+	            kcu.column_name as local_column,
+	            ccu.table_schema AS target_schema,
+	            ccu.table_name AS target_table,
+	            ccu.column_name AS target_column
+	        FROM
+	            information_schema.table_constraints AS tc
+	            JOIN information_schema.key_column_usage AS kcu
+	              ON tc.constraint_name = kcu.constraint_name
+	              AND tc.table_schema = kcu.table_schema
+	            JOIN information_schema.constraint_column_usage AS ccu
+	              ON ccu.constraint_name = tc.constraint_name
+	              AND ccu.table_schema = tc.table_schema
+	        WHERE tc.constraint_type = 'FOREIGN KEY'
+	        AND tc.table_schema NOT IN ('pg_catalog', 'information_schema')
+	        ORDER BY tc.table_schema, tc.table_name, tc.constraint_name, kcu.ordinal_position;
+	`
+	fkRows, err := db.QueryContext(ctx, fkQuery)
+	if err != nil {
+	        return nil, fmt.Errorf("failed to query foreign keys -> %w", err)
+	}
+	defer func(fkRows *sql.Rows) {
+	        _ = fkRows.Close()
+	}(fkRows)
+
+	for fkRows.Next() {
+	        var schema, table, constraint, localCol, targetSchema, targetTable, targetCol string
+	        err = fkRows.Scan(&schema, &table, &constraint, &localCol, &targetSchema, &targetTable, &targetCol)
+	        if err != nil {
+	                return nil, fmt.Errorf("failed to scan foreign key -> %w", err)
+	        }
+
+	        s, ok := state.Schemas[schema]
+	        if !ok {
+	                continue
+	        }
+	        t, ok := s.Tables[table]
+	        if !ok {
+	                continue
+	        }
+
+	        fk, ok := t.ForeignKeys[constraint]
+	        if !ok {
+	                targetRef := targetTable
+	                if targetSchema != schema {
+	                        targetRef = fmt.Sprintf("%s.%s", targetSchema, targetTable)
+	                }
+
+	                fk = &LiveForeignKey{
+	                        Name:        constraint,
+	                        TargetTable: targetRef,
+	                        LocalCols:   []string{},
+	                        TargetCols:  []string{},
+	                }
+	                t.ForeignKeys[constraint] = fk
+	        }
+	        fk.LocalCols = append(fk.LocalCols, localCol)
+	        fk.TargetCols = append(fk.TargetCols, targetCol)
+	}
+	err = fkRows.Err()
+	if err != nil {
+	        return nil, fmt.Errorf("failed iterating foreign keys -> %w", err)
 	}
 
 	return state, nil
-}
+	}
