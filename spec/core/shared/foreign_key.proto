@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+package core.shared;
+
+import "core/shared/foreign_key_action.proto";
+import "core/shared/deferrable_state.proto";
+import "core/shared/foreign_key_column_mapping.proto";
+
+// ForeignKey represents a strictly enforced referential database constraint 
+// linking columns in a local table to columns in a target table.
+message ForeignKey {
+  // A unique identifier for the foreign key constraint.
+  string name = 1;
+  
+  // The fully qualified target table this foreign key points to 
+  // (e.g. 'public.users' or 'users').
+  string target_table = 2;
+  
+  // Mappings of local source columns to the referenced target columns.
+  // Multiple mappings indicate a composite foreign key constraint.
+  repeated ForeignKeyColumnMapping columns = 3;
+  
+  // The referential action triggered when the referenced row is deleted.
+  ForeignKeyAction on_delete = 4;
+  
+  // The referential action triggered when the referenced row is updated.
+  ForeignKeyAction on_update = 5;
+  
+  // Controls when the foreign key constraint is validated during a transaction.
+  DeferrableState deferrable = 6;
+}

@@ -1,0 +1,343 @@
+{{- /* gotype: github.com/scheme/gen/postgres/ast.ModelData */ -}}
+
+{{- $modelName := .StructNameExported }}
+
+// Get executes the query and returns a slice of matching
+// {{ $modelName }} pointers.
+func (q *{{ $modelName }}Query) Get(
+  ctx context.Context,
+) ([]*{{ $modelName }}, error) {
+  _, colMappers, err := q.buildSelect()
+  if err != nil {
+    return nil, err
+  }
+
+  queryStr, args, err := q.ToSelectSQL(1, false)
+  if err != nil {
+    return nil, err
+  }
+
+  rows, err := q.db.QueryContext(ctx, queryStr, args...)
+  if err != nil {
+    return nil, err
+  }
+  defer func(rows *sql.Rows) {
+    _ = rows.Close()
+   }(rows)
+
+  var results []*{{ $modelName }}
+  ptrs := make([]any, len(colMappers))
+  for rows.Next() {
+    var row {{ $modelName }}
+    for i, mapper := range colMappers {
+      mapper(&row, ptrs, i)
+    }
+
+    err = rows.Scan(ptrs...)
+    if err != nil {
+      return nil, err
+    }
+    results = append(results, &row)
+  }
+
+  err = rows.Err()
+  if err != nil {
+    return nil, err
+  }
+
+  if len(results) > 0 {
+    err := q.loadEdges(ctx, results)
+    if err != nil {
+      return nil, err
+    }
+  }
+
+  return results, nil
+}
+
+// First executes the query, wrapping it with a LIMIT 1. It returns the first
+// matching {{ $modelName }} pointer, or nil if no records are found.
+func (q *{{ $modelName }}Query) First(
+  ctx context.Context,
+) (*{{ $modelName }}, error) {
+  clone := q.Limit(1)
+
+  _, colMappers, err := clone.buildSelect()
+  if err != nil {
+    return nil, err
+  }
+
+  queryStr, args, err := clone.ToSelectSQL(1, false)
+  if err != nil {
+    return nil, err
+  }
+
+  var row {{ $modelName }}
+  ptrs := make([]any, len(colMappers))
+  for i, mapper := range colMappers {
+    mapper(&row, ptrs, i)
+  }
+
+  err = clone.db.QueryRowContext(ctx, queryStr, args...).Scan(ptrs...)
+  if err != nil {
+    if errors.Is(err, sql.ErrNoRows) {
+      return nil, nil
+    }
+    return nil, err
+  }
+
+  err = clone.loadEdges(ctx, []*{{ $modelName }}{&row})
+  if err != nil {
+    return nil, err
+  }
+
+  return &row, nil
+}
+
+// Exists builds and executes an optimized SELECT EXISTS(...) query.
+func (q *{{ $modelName }}Query) Exists(ctx context.Context) (bool, error) {
+  var query strings.Builder
+  query.Grow(256)
+  query.WriteString(`SELECT EXISTS(SELECT 1 FROM {{ .TableFullName }}`)
+  if q.alias != "" {
+    query.WriteString(" AS ")
+    query.WriteString(q.alias)
+  }
+
+  var args []any
+  paramIdx := 1
+
+  if len(q.wheres) > 0 {
+    query.WriteString(" WHERE ")
+    whereSQL, whereArgs, err := buildConditions(q.wheres, &paramIdx)
+    if err != nil {
+      return false, err
+    }
+    query.WriteString(whereSQL)
+    args = append(args, whereArgs...)
+  }
+
+  if len(q.groupBys) > 0 {
+    query.WriteString(" GROUP BY ")
+    for i, ob := range q.groupBys {
+      if i > 0 {
+        query.WriteString(", ")
+      }
+      query.WriteString(ob.String())
+    }
+  }
+
+  if len(q.havings) > 0 {
+    query.WriteString(" HAVING ")
+    havingSQL, havingArgs, err := buildConditions(q.havings, &paramIdx)
+    if err != nil {
+      return false, err
+    }
+    query.WriteString(havingSQL)
+    args = append(args, havingArgs...)
+  }
+
+  query.WriteString(")")
+
+  var exists bool
+  err := q.db.QueryRowContext(ctx, query.String(), args...).Scan(&exists)
+  if err != nil {
+    return false, err
+  }
+  return exists, nil
+}
+
+// Paginate limits the query to a specific page and calculates the total count.
+func (q *{{ $modelName }}Query) Paginate(
+  ctx context.Context, page int, pageSize int,
+) (*{{ $modelName }}Pagination, error) {
+  if page < 1 {
+    page = 1
+  }
+  if pageSize < 1 {
+    pageSize = 10
+  }
+  offset := (page - 1) * pageSize
+
+  _, colMappers, err := q.buildSelect()
+  if err != nil {
+    return nil, err
+  }
+
+  clone := q.Limit(pageSize).Offset(offset)
+  queryStr, args, err := clone.ToSelectSQL(1, true)
+  if err != nil {
+    return nil, err
+  }
+
+  rows, err := clone.db.QueryContext(ctx, queryStr, args...)
+  if err != nil {
+    return nil, err
+  }
+  defer func(rows *sql.Rows) {
+    _ = rows.Close()
+   }(rows)
+
+  var results []*{{ $modelName }}
+  var totalCount int
+
+  ptrs := make([]any, len(colMappers)+1)
+  ptrs[len(colMappers)] = &totalCount
+
+  for rows.Next() {
+    var row {{ $modelName }}
+    for i, mapper := range colMappers {
+      mapper(&row, ptrs, i)
+    }
+
+    err = rows.Scan(ptrs...)
+    if err != nil {
+      return nil, err
+    }
+    results = append(results, &row)
+  }
+
+  err = rows.Err()
+  if err != nil {
+    return nil, err
+  }
+
+  if len(results) > 0 {
+    err := clone.loadEdges(ctx, results)
+    if err != nil {
+      return nil, err
+    }
+  }
+
+  return &{{ $modelName }}Pagination{
+    Items:      results,
+    TotalCount: totalCount,
+  }, nil
+}
+
+// loadEdges eager-loads the requested relationships for a given set of
+// {{ $modelName }} records.
+func (q *{{ $modelName }}Query) loadEdges(
+  ctx context.Context, results []*{{ $modelName }},
+) error {
+  if len(results) == 0 {
+    return nil
+  }
+  {{- range .Edges }}
+    {{- $edgeName := .Name }}
+    {{- $targetModel := .TargetModel }}
+    {{- $localCol := index .LocalColumns 0 }}
+    {{- $targetCol := index .TargetColumns 0 }}
+    {{- $localField := index .LocalFields 0 }}
+    {{- $targetField := index .TargetFields 0 }}
+
+    if q.with{{ $edgeName }} != nil || len(q.withNamed{{ $edgeName }}) > 0 {
+      var keys []any
+      for _, item := range results {
+        keys = append(keys, item.{{ $localField }})
+      }
+
+      // Deduplicate keys
+      keyMap := make(map[any]struct{})
+      uniqueKeys := make([]any, 0, len(keys))
+      for _, k := range keys {
+        _, exists := keyMap[k]
+        if !exists {
+          keyMap[k] = struct{}{}
+          uniqueKeys = append(uniqueKeys, k)
+        }
+      }
+
+      if len(uniqueKeys) > 0 {
+        if q.with{{ $edgeName }} != nil {
+          builder := q.with{{ $edgeName }}.Where(WhereCondition{
+            Sql: "{{ $targetCol }} = ANY(ARRAY[" +
+              strings.TrimRight(strings.Repeat("?,", len(uniqueKeys)), ",") +
+              "])",
+            Args: uniqueKeys,
+          })
+          loaded, err := builder.Get(ctx)
+          if err != nil {
+            return err
+          }
+          {{- if .IsSlice }}
+            m := make(map[any][]*{{ $targetModel }})
+            for _, rel := range loaded {
+              m[rel.{{ $targetField }}] = append(
+                m[rel.{{ $targetField }}], rel,
+              )
+            }
+            for _, item := range results {
+              rels, ok := m[item.{{ $localField }}]
+              if ok {
+                item.{{ $edgeName }} = rels
+              }
+            }
+          {{- else }}
+            m := make(map[any]*{{ $targetModel }})
+            for _, rel := range loaded {
+              m[rel.{{ $targetField }}] = rel
+            }
+            for _, item := range results {
+              rel, ok := m[item.{{ $localField }}]
+              if ok {
+                item.{{ $edgeName }} = rel
+              }
+            }
+          {{- end }}
+        }
+
+        if len(q.withNamed{{ $edgeName }}) > 0 {
+          for name, builder := range q.withNamed{{ $edgeName }} {
+            scopedBuilder := builder.Where(WhereCondition{
+              Sql: "{{ $targetCol }} = ANY(ARRAY[" +
+              strings.TrimRight(strings.Repeat("?,", len(uniqueKeys)), ",") +
+              "])",
+              Args: uniqueKeys,
+            })
+            loaded, err := scopedBuilder.Get(ctx)
+            if err != nil {
+              return err
+            }
+            {{- if .IsSlice }}
+              m := make(map[any][]*{{ $targetModel }})
+              for _, rel := range loaded {
+                m[rel.{{ $targetField }}] = append(
+                m[rel.{{ $targetField }}], rel,
+              )
+              }
+              for _, item := range results {
+                if item.Named{{ $edgeName }} == nil {
+                  item.Named{{ $edgeName }} = make(
+                    map[string][]*{{ $targetModel }},
+                  )
+                }
+                rels, ok := m[item.{{ $localField }}]
+                if ok {
+                  item.Named{{ $edgeName }}[name] = rels
+                }
+              }
+            {{- else }}
+              m := make(map[any]*{{ $targetModel }})
+              for _, rel := range loaded {
+                m[rel.{{ $targetField }}] = rel
+              }
+              for _, item := range results {
+                if item.Named{{ $edgeName }} == nil {
+                  item.Named{{ $edgeName }} = make(
+                    map[string]*{{ $targetModel }},
+                  )
+                }
+                rel, ok := m[item.{{ $localField }}]
+                if ok {
+                  item.Named{{ $edgeName }}[name] = rel
+                }
+              }
+            {{- end }}
+          }
+        }
+      }
+    }
+  {{- end }}
+  return nil
+}

@@ -1,0 +1,42 @@
+syntax = "proto3";
+
+package postgres;
+
+import "postgres/index_column.proto";
+
+// Index represents a database index used to optimize query performance,
+// enforce uniqueness, or pre-compute sorting logic.
+message Index {
+  // A unique identifier for the index.
+  string name = 1;
+  
+  // An ordered list of columns (or expressions) included in the index.
+  repeated IndexColumn columns = 2;
+  
+  // If true, the index enforces a uniqueness constraint, preventing duplicate
+  // values across the indexed columns.
+  bool is_unique = 3;
+  
+  // Determines if NULL values are treated as distinct from one another.
+  // In PostgreSQL 15+, setting this to true (UNIQUE NULLS NOT DISTINCT) ensures
+  // that you cannot have multiple rows with NULL values in the unique index column.
+  bool nulls_not_distinct = 4;
+  
+  // The algorithm used for the index (e.g., 'btree', 'hash', 'gin', 'gist').
+  // If left empty, the PostgreSQL engine will default to 'btree'.
+  string access_method = 5;
+  
+  // A boolean SQL expression that defines a partial index (e.g., 'active = true').
+  // Only rows that satisfy this predicate are included in the index structure.
+  string predicate = 6;
+  
+  // Additional payload columns to append to the index (creating a covering index).
+  // These columns aren't used for search/sorting but can be read directly from the
+  // index without visiting the underlying table heap.
+  repeated string include_columns = 7;
+  
+  // Storage location for the index, if the database utilizes custom tablespaces.
+  string tablespace = 8;
+  // The previous name of this object, used to issue RENAME commands instead of DROP/CREATE.
+  string name_previous = 9;
+}

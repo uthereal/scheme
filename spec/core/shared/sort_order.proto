@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package core.shared;
+
+// SortOrder specifies the ascending or descending sorting direction 
+// applied to an index column.
+enum SortOrder {
+  // Unspecified sort order (usually defaults to ASC depending on engine).
+  SORT_ORDER_UNSPECIFIED = 0;
+  
+  // Sorts the values in ascending order (smallest to largest).
+  SORT_ORDER_ASC = 1;
+  
+  // Sorts the values in descending order (largest to smallest).
+  SORT_ORDER_DESC = 2;
+}

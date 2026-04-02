@@ -1,0 +1,70 @@
+type WhereCondition struct {
+  Sql   string
+  Args  []any
+  Query QueryBuilder
+  IsOr  bool
+  Group []WhereCondition
+}
+
+func And(conds ...WhereCondition) WhereCondition {
+  return WhereCondition{Group: conds, IsOr: false}
+}
+
+func Or(conds ...WhereCondition) WhereCondition {
+  return WhereCondition{Group: conds, IsOr: true}
+}
+
+func buildConditions(
+  conds []WhereCondition, paramIdx *int,
+) (string, []any, error) {
+  if len(conds) == 0 {
+    return "", nil, nil
+  }
+  var query strings.Builder
+  var args []any
+  var numBuf [20]byte
+
+  for i, cond := range conds {
+    if i > 0 {
+      if cond.IsOr {
+        query.WriteString(" OR ")
+      } else {
+        query.WriteString(" AND ")
+      }
+    }
+
+    if len(cond.Group) > 0 {
+      query.WriteString("(")
+      gSQL, gArgs, err := buildConditions(cond.Group, paramIdx)
+      if err != nil {
+        return "", nil, err
+      }
+      query.WriteString(gSQL)
+      query.WriteString(")")
+      args = append(args, gArgs...)
+    } else if cond.Query != nil {
+      query.WriteString(cond.Sql)
+      query.WriteString(" (")
+      subSQL, subArgs, err := cond.Query.ToSelectSQL(*paramIdx, false)
+      if err != nil {
+        return "", nil, err
+      }
+      query.WriteString(subSQL)
+      query.WriteString(")")
+      args = append(args, subArgs...)
+      *paramIdx += len(subArgs)
+    } else {
+      parts := strings.Split(cond.Sql, "?")
+      for j, part := range parts {
+        query.WriteString(part)
+        if j < len(parts)-1 && j < len(cond.Args) {
+          query.WriteString("$")
+          query.Write(strconv.AppendInt(numBuf[:0], int64(*paramIdx), 10))
+          args = append(args, cond.Args[j])
+          *paramIdx++
+        }
+      }
+    }
+  }
+  return query.String(), args, nil
+}

@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package core.shared;
+
+// DeferrableState specifies whether a constraint's validity is checked immediately 
+// after every statement, or if it can be deferred until the end of the transaction.
+enum DeferrableState {
+  // Unspecified deferrable state.
+  DEFERRABLE_STATE_UNSPECIFIED = 0;
+  
+  // The constraint is checked immediately after each statement. It cannot be deferred.
+  // This is the strict default behavior in almost all SQL databases.
+  DEFERRABLE_STATE_NOT_DEFERRABLE = 1;
+  
+  // The constraint is checked immediately by default, but can be explicitly deferred 
+  // for a specific transaction using `SET CONSTRAINTS ALL DEFERRED`.
+  DEFERRABLE_STATE_INITIALLY_IMMEDIATE = 2;
+  
+  // The constraint check is automatically postponed until the `COMMIT` 
+  // of the transaction.
+  DEFERRABLE_STATE_INITIALLY_DEFERRED = 3;
+}

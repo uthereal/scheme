@@ -1,0 +1,31 @@
+{{- /* gotype: github.com/scheme/gen/postgres/ast.ModelData */ -}}
+
+// DBQuerier represents a generic database interface. It is satisfied by
+// sql.DB, sql.Tx, and sql.Conn.
+type DBQuerier interface {
+  ExecContext(
+    ctx context.Context, query string, args ...any,
+  ) (sql.Result, error)
+  QueryContext(
+    ctx context.Context, query string, args ...any,
+  ) (*sql.Rows, error)
+  QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
+}
+
+// QueryBuilder represents an abstract SQL query builder.
+type QueryBuilder interface {
+  ToSelectSQL(startParamIdx int, withCount bool) (string, []any, error)
+}
+
+// Column represents a strongly typed database column.
+type Column interface {
+  String() string
+}
+
+// OrderDirection defines the sort direction for an ORDER BY clause.
+type OrderDirection string
+
+const (
+  OrderAsc  OrderDirection = "ASC"
+  OrderDesc OrderDirection = "DESC"
+)

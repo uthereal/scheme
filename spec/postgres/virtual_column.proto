@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package postgres;
+
+import "postgres/data_type.proto";
+
+// VirtualColumn represents a column whose value is derived or computed,
+// rather than being physically stored like a standard column.
+// This maps to physical PostgreSQL `GENERATED ALWAYS AS (...)` columns,
+// or purely application-level computed properties.
+message VirtualColumn {
+  // The name of the virtual column.
+  string name = 1;
+  
+  // The expected structural data type of the computed result.
+  DataType type = 2;
+  
+  // The SQL expression used to compute the column's value 
+  // (e.g., 'first_name || " " || last_name').
+  string expression = 3;
+}

@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+package core.shared;
+
+// RelationColumnMapping specifies how columns from a source table connect 
+// to columns in a target table to form a relation.
+message RelationColumnMapping {
+  // The local column name in the source table.
+  string source_column = 1;
+  
+  // The referenced column name in the target table.
+  string target_column = 2;
+}

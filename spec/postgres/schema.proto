@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package postgres;
+
+import "postgres/table.proto";
+
+// PostgresSchema represents a single logical namespace within a PostgreSQL database.
+// Schemas are used to organize tables, types, and relations, and to prevent 
+// naming collisions across different domains of the application.
+message PostgresSchema {
+  // The unique name of the schema namespace (e.g., 'public', 'auth', 'tenant_a').
+  string name = 1;
+  
+  // The collection of logical tables contained specifically within this schema namespace.
+  repeated Table tables = 2;
+  // The previous name of this object, used to issue RENAME commands instead of DROP/CREATE.
+  string name_previous = 3;
+}

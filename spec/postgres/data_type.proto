@@ -1,0 +1,267 @@
+syntax = "proto3";
+
+package postgres;
+
+// Note: This file explicitly exempts the 1-1-1 (one message per file) rule.
+// It consolidates the root DataType oneof wrapper along with all 50+ underlying
+// PostgreSQL type primitives (e.g., VarcharType, IntegerType) into a single file
+// to prevent an explosion of micro-files that would heavily fragment type discovery.
+
+// DataType represents the detailed types supported by the engine.
+message DataType {
+  oneof type {
+    SmallIntType smallint_type = 1;
+    IntegerType integer_type = 2;
+    BigIntType bigint_type = 3;
+    DecimalType decimal_type = 4;
+    NumericType numeric_type = 5;
+    RealType real_type = 6;
+    DoublePrecisionType double_precision_type = 7;
+    SmallSerialType smallserial_type = 8;
+    SerialType serial_type = 9;
+    BigSerialType bigserial_type = 10;
+
+    MoneyType money_type = 11;
+
+    VarcharType varchar_type = 12;
+    CharType char_type = 13;
+    TextType text_type = 14;
+
+    ByteaType bytea_type = 15;
+
+    TimestampType timestamp_type = 16;
+    TimestampTzType timestamptz_type = 17;
+    DateType date_type = 18;
+    TimeType time_type = 19;
+    TimeTzType timetz_type = 20;
+    IntervalType interval_type = 21;
+
+    BooleanType boolean_type = 22;
+
+    EnumType enum_type = 23;
+
+    PointType point_type = 24;
+    LineType line_type = 25;
+    LsegType lseg_type = 26;
+    BoxType box_type = 27;
+    PathType path_type = 28;
+    PolygonType polygon_type = 29;
+    CircleType circle_type = 30;
+
+    InetType inet_type = 31;
+    CidrType cidr_type = 32;
+    MacAddrType macaddr_type = 33;
+    MacAddr8Type macaddr8_type = 34;
+
+    BitType bit_type = 35;
+    BitVaryingType bit_varying_type = 36;
+
+    TsVectorType tsvector_type = 37;
+    TsQueryType tsquery_type = 38;
+
+    UuidType uuid_type = 39;
+
+    XmlType xml_type = 40;
+
+    JsonType json_type = 41;
+    JsonbType jsonb_type = 42;
+    JsonpathType jsonpath_type = 43;
+
+    ArrayType array_type = 44;
+
+    CompositeType composite_type = 45;
+
+    Int4RangeType int4_range_type = 46;
+    Int8RangeType int8_range_type = 47;
+    NumRangeType num_range_type = 48;
+    TsRangeType ts_range_type = 49;
+    TstzRangeType tstz_range_type = 50;
+    DateRangeType date_range_type = 51;
+    CustomRangeType custom_range_type = 52;
+
+    DomainType domain_type = 53;
+
+    OidType oid_type = 54;
+
+    PgLsnType pg_lsn_type = 55;
+  }
+}
+
+// Numeric Types
+message SmallIntType {}
+message IntegerType {}
+message BigIntType {}
+message DecimalType {
+  // The total number of significant digits (e.g., 10 for DECIMAL(10,2)).
+  optional int32 precision = 1;
+  
+  // The number of digits allowed after the decimal point (e.g., 2 for DECIMAL(10,2)).
+  optional int32 scale = 2;
+}
+message NumericType {
+  // The total number of significant digits (e.g., 10 for NUMERIC(10,2)).
+  optional int32 precision = 1;
+  
+  // The number of digits allowed after the decimal point (e.g., 2 for NUMERIC(10,2)).
+  optional int32 scale = 2;
+}
+message RealType {}
+message DoublePrecisionType {}
+message SmallSerialType {}
+message SerialType {}
+message BigSerialType {}
+message MoneyType {}
+
+// Character Types
+message VarcharType {
+  // The maximum character length of the varchar column (e.g., 255 for VARCHAR(255)).
+  optional int32 length = 1;
+}
+message CharType {
+  // The fixed character length of the char column (e.g., 10 for CHAR(10)).
+  optional int32 length = 1;
+}
+message TextType {}
+
+// Binary Data Types
+message ByteaType {}
+
+// Date/Time Types
+message TimestampType {
+  // The number of fractional digits retained in the seconds field (0 to 6).
+  optional int32 precision = 1;
+}
+message TimestampTzType {
+  // The number of fractional digits retained in the seconds field (0 to 6).
+  optional int32 precision = 1;
+}
+message DateType {}
+message TimeType {
+  // The number of fractional digits retained in the seconds field (0 to 6).
+  optional int32 precision = 1;
+}
+message TimeTzType {
+  // The number of fractional digits retained in the seconds field (0 to 6).
+  optional int32 precision = 1;
+}
+message IntervalType {
+  // Restricts the interval to specific fields (e.g., 'YEAR', 'MONTH', 'DAY TO HOUR').
+  optional string fields = 1;
+  
+  // The number of fractional digits retained in the seconds field (0 to 6).
+  optional int32 precision = 2;
+}
+
+// Boolean Type
+message BooleanType {}
+
+// Enumerated Types
+message EnumType {
+  // The database schema this Enum physically resides in (e.g., 'public', 'auth').
+  string schema = 3;
+  
+  // The name of the custom PostgreSQL ENUM type.
+  string name = 1;
+  
+  // The explicitly allowed string values for this ENUM type.
+  repeated string values = 2;
+  // The previous name of this object, used to issue RENAME commands instead of DROP/CREATE.
+  string name_previous = 4;
+}
+
+// Geometric Types
+message PointType {}
+message LineType {}
+message LsegType {}
+message BoxType {}
+message PathType {}
+message PolygonType {}
+message CircleType {}
+
+// Network Address Types
+message InetType {}
+message CidrType {}
+message MacAddrType {}
+message MacAddr8Type {}
+
+// Bit String Types
+message BitType {
+  // The exact length of the bit string (e.g., 8 for BIT(8)).
+  optional int32 length = 1;
+}
+message BitVaryingType {
+  // The maximum length of the variable-length bit string (e.g., 16 for BIT VARYING(16)).
+  optional int32 length = 1;
+}
+
+// Text Search Types
+message TsVectorType {}
+message TsQueryType {}
+
+// UUID Type
+message UuidType {}
+
+// XML Type
+message XmlType {}
+
+// JSON Types
+message JsonType {}
+message JsonbType {}
+message JsonpathType {}
+
+// Arrays
+message ArrayType {
+  // The underlying element type contained within the array.
+  DataType element_type = 1;
+  
+  // The depth/dimensions of the array (e.g., 1 for an integer[], 2 for integer[][]).
+  optional int32 dimensions = 2;
+}
+
+// Composite / Range / Domain
+message CompositeType {
+  string schema = 3;
+  string name = 1;
+  repeated CompositeField fields = 2;
+  // The previous name of this object, used to issue RENAME commands instead of DROP/CREATE.
+  string name_previous = 4;
+}
+
+message CompositeField {
+  // The internal field name of the composite property.
+  string name = 1;
+  
+  // The PostgreSQL data type mapped recursively to this field.
+  DataType type = 2;
+}
+
+// Range Types
+message Int4RangeType {}
+message Int8RangeType {}
+message NumRangeType {}
+message TsRangeType {}
+message TstzRangeType {}
+message DateRangeType {}
+message CustomRangeType {
+  // The name of the custom PostgreSQL range type.
+  string name = 1;
+  
+  // The underlying element data type defining the range bounds.
+  DataType base_type = 2;
+}
+
+message DomainType {
+  // The database schema this Domain Type physically resides in (e.g., 'public').
+  string schema = 3;
+  
+  // The custom name of the Domain.
+  string name = 1;
+  
+  // The underlying PostgreSQL base type that this domain aliases.
+  DataType base_type = 2;
+  // The previous name of this object, used to issue RENAME commands instead of DROP/CREATE.
+  string name_previous = 4;
+}
+
+message OidType {}
+message PgLsnType {}

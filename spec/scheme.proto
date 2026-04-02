@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+package scheme;
+
+import "core/database.proto";
+
+// Scheme acts as the absolute root definition for your application's data 
+// infrastructure. A single Scheme file can configure multiple database 
+// clusters, schemas, tables, cross-database linkages, and relationships.
+message Scheme {
+  // A collection of logically isolated databases tracked within the Scheme.
+  repeated core.Database databases = 1;
+}

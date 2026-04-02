@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+package postgres;
+
+import "core/shared/deferrable_state.proto";
+
+// CheckConstraint represents a database check constraint, ensuring that values
+// satisfy a specific boolean expression before they can be inserted or updated.
+message CheckConstraint {
+  // A unique identifier for the check constraint.
+  string name = 1;
+
+  // The primary column this check constraint applies to.
+  // (Note: The predicate itself may reference multiple columns for table-level checks).
+  string column = 2;
+
+  // The boolean SQL expression that must evaluate to true or unknown (e.g., 'price > 0').
+  string predicate = 3;
+
+  // Controls when the check constraint is validated during a transaction.
+  core.shared.DeferrableState deferrable = 4;
+
+  // If true, the constraint is not automatically inherited by child tables or partitions
+  // (PostgreSQL-specific 'NO INHERIT' clause).
+  bool no_inherit = 5;
+  // The previous name of this object, used to issue RENAME commands instead of DROP/CREATE.
+  string name_previous = 6;
+}

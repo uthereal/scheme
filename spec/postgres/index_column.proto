@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package postgres;
+
+import "core/shared/sort_order.proto";
+
+// IndexColumn defines a single column (or expression) and its structural 
+// configuration within a parent Index.
+message IndexColumn {
+  // The name of the column (or raw expression) being indexed.
+  string name = 1;
+  
+  // The sorting order of the index column (Ascending, Descending).
+  // If unspecified, the engine typically defaults to Ascending.
+  core.shared.SortOrder order = 2;
+  
+  // Collation defines the string sorting rules (e.g., 'C', 'en_US.utf8').
+  // If left empty, the database's default collation is used.
+  string collation = 3;
+  
+  // Operator class defines the strategy the index access method uses
+  // (e.g., 'varchar_pattern_ops'). Primarily a PostgreSQL feature for
+  // fine-tuning specialized index matching operations.
+  string operator_class = 4;
+}

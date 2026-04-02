@@ -1,0 +1,165 @@
+{{- /* gotype: github.com/scheme/gen/postgres/ast.ModelData */ -}}
+
+{{- $modelName := .StructNameExported }}
+
+// {{ $modelName }}UpdateOption defines a strongly-typed functional argument for
+// updating a {{ $modelName }} record.
+type {{ $modelName }}UpdateOption func(map[Column]any)
+
+// {{ $modelName }}Update provides strongly-typed setter functions for
+// updating a {{ $modelName }} record.
+var {{ $modelName }}Update = struct {
+  {{- range .Fields }}
+    {{ .Name }} func({{ .Type }}) {{ $modelName }}UpdateOption
+    {{- if not (eq .Type "bool") }}
+    {{ .Name }}Null func() {{ $modelName }}UpdateOption
+    {{- end }}
+  {{- end }}
+}{
+  {{- range .Fields }}
+    {{ .Name }}: func(v {{ .Type }}) {{ $modelName }}UpdateOption {
+      return func(m map[Column]any) {
+        m[{{ $modelName }}Select.{{ .Name }}] = v
+      }
+    },
+    {{- if not (eq .Type "bool") }}
+    {{ .Name }}Null: func() {{ $modelName }}UpdateOption {
+      return func(m map[Column]any) {
+        m[{{ $modelName }}Select.{{ .Name }}] = nil
+      }
+    },
+    {{- end }}
+  {{- end }}
+}
+
+// Update applies the provided options to all {{ $modelName }} records matching
+// the current query constraints. It returns the updated records if a RETURNING
+// clause is used, or the number of affected rows otherwise.
+func (q *{{ $modelName }}Query) Update(
+  ctx context.Context, opts ...{{ $modelName }}UpdateOption,
+) ([]*{{ $modelName }}, int64, error) {
+  if len(opts) == 0 {
+    return nil, 0, errors.New("no update options provided")
+  }
+
+  m := make(map[Column]any)
+  for _, opt := range opts {
+    opt(m)
+  }
+
+  if len(m) == 0 {
+    return nil, 0, errors.New("no columns to update")
+  }
+
+  var query strings.Builder
+  var numBuf [20]byte
+  query.Grow(256)
+  query.WriteString(`UPDATE {{ .TableFullName }}`)
+  if q.alias != "" {
+    query.WriteString(" AS ")
+    query.WriteString(q.alias)
+  }
+  query.WriteString(" SET ")
+
+  var args = make([]any, 0, len(m)+16)
+  paramIdx := 1
+
+  i := 0
+  for col, val := range m {
+    if i > 0 {
+      query.WriteString(", ")
+    }
+    query.WriteString(col.String())
+    if val == nil {
+      query.WriteString(" = NULL")
+    } else {
+      query.WriteString(" = $")
+      query.Write(strconv.AppendInt(numBuf[:0], int64(paramIdx), 10))
+      args = append(args, val)
+      paramIdx++
+    }
+    i++
+  }
+
+  if len(q.wheres) > 0 {
+    query.WriteString(" WHERE ")
+    whereSQL, whereArgs, err := buildConditions(q.wheres, &paramIdx)
+    if err != nil {
+      return nil, 0, err
+    }
+    query.WriteString(whereSQL)
+    args = append(args, whereArgs...)
+  }
+
+  returning := q.returning
+  if len(returning) == 0 {
+    res, err := q.db.ExecContext(ctx, query.String(), args...)
+    if err != nil {
+      return nil, 0, err
+    }
+    rowsAffected, _ := res.RowsAffected()
+    return nil, rowsAffected, nil
+  }
+
+  query.WriteString(" RETURNING ")
+  colMappers := make([]func(*{{ $modelName }}, []any, int), len(returning))
+
+  for i, col := range returning {
+    if i > 0 {
+      query.WriteString(", ")
+    }
+    query.WriteString(col.String())
+
+    colName := col.String()
+    asIdx := strings.Index(strings.ToUpper(colName), " AS ")
+    if asIdx >= 0 {
+      colName = colName[:asIdx]
+    }
+    idx := strings.LastIndexByte(colName, '.')
+    if idx >= 0 {
+      colName = colName[idx+1:]
+    }
+    colName = strings.Trim(colName, `"`)
+
+    switch colName {
+    {{- range .Fields }}
+    case "{{ .ColumnName }}":
+      colMappers[i] = func(row *{{ $modelName }}, ptrs []any, idx int) {
+        ptrs[idx] = &row.{{ .Name }}
+      }
+    {{- end }}
+    default:
+      return nil, 0, fmt.Errorf("unknown returning column -> %s", col.String())
+    }
+  }
+
+  dbRows, err := q.db.QueryContext(ctx, query.String(), args...)
+  if err != nil {
+    return nil, 0, err
+  }
+  defer func(dbRows *sql.Rows) {
+    _ = dbRows.Close()
+   }(dbRows)
+
+  var results = make([]*{{ $modelName }}, 0)
+  ptrs := make([]any, len(colMappers))
+  for dbRows.Next() {
+    var clone {{ $modelName }}
+    for j, mapper := range colMappers {
+      mapper(&clone, ptrs, j)
+    }
+
+    err = dbRows.Scan(ptrs...)
+    if err != nil {
+      return nil, 0, err
+    }
+    results = append(results, &clone)
+  }
+
+  err = dbRows.Err()
+  if err != nil {
+    return nil, 0, err
+  }
+
+  return results, int64(len(results)), nil
+}

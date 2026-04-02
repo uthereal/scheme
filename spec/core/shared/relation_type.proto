@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package core.shared;
+
+// RelationType defines the multiplicity of a relationship between two tables.
+enum RelationType {
+  // Unspecified or unknown relationship type.
+  RELATION_TYPE_UNSPECIFIED = 0;
+  
+  // Represents a 1:1 relationship where each row in the source table 
+  // corresponds to at most one row in the target table.
+  RELATION_TYPE_ONE_TO_ONE = 1;
+  
+  // Represents a 1:N relationship where a single row in the source table 
+  // can relate to multiple rows in the target table.
+  RELATION_TYPE_ONE_TO_MANY = 2;
+  
+  // Represents an N:1 relationship where multiple rows in the source table 
+  // can relate to a single row in the target table (typically a foreign key).
+  RELATION_TYPE_MANY_TO_ONE = 3;
+  
+  // Represents an N:M relationship where multiple rows in the source table 
+  // can relate to multiple rows in the target table (typically via a join table).
+  RELATION_TYPE_MANY_TO_MANY = 4;
+}
