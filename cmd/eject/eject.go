@@ -11,7 +11,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/uthereal/scheme/spec"
+	"github.com/uthereal/scheme/proto"
 )
 
 // Run executes the 'eject' command to unpack the embedded protobuf definitions.
@@ -62,7 +62,7 @@ func ejectProtos(logger *slog.Logger, outDir string) error {
 	)
 
 	err := fs.WalkDir(
-		spec.FS, ".", func(path string, d fs.DirEntry, err error) error {
+		proto.FS, ".", func(path string, d fs.DirEntry, err error) error {
 			if err != nil {
 				return err
 			}
@@ -84,7 +84,7 @@ func ejectProtos(logger *slog.Logger, outDir string) error {
 
 			logger.Info("Writing schema file.", slog.String("file", targetPath))
 
-			in, err := spec.FS.Open(path)
+			in, err := proto.FS.Open(path)
 			if err != nil {
 				return fmt.Errorf("failed to open embedded file %q -> %w", path, err)
 			}
