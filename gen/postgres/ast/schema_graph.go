@@ -315,9 +315,14 @@ func (sg *SchemaGraph) buildModelGraph(
 				isSlice := relType == shared.RelationType_RELATION_TYPE_ONE_TO_MANY ||
 					relType == shared.RelationType_RELATION_TYPE_MANY_TO_MANY
 
+				edgeName := strcase.ToGoPascal(rel.GetName())
+				if edgeName == "" {
+					edgeName = targetStructName
+				}
+
 				sourceModel.Edges = append(sourceModel.Edges, EdgeData{
-					Name:          targetStructName,
-					NameLower:     strings.ToLower(targetStructName),
+					Name:          edgeName,
+					NameLower:     strings.ToLower(edgeName),
 					TargetModel:   targetStructName,
 					IsSlice:       isSlice,
 					LocalColumns:  localCols,
@@ -326,20 +331,20 @@ func (sg *SchemaGraph) buildModelGraph(
 					TargetFields:  targetFields,
 					IsBackRef:     false,
 				})
-
-				pluralName := strcase.ToGoPascal(tableName)
+				backRefName := strcase.ToGoPascal(tableName)
 				if tally[tableName] > 1 {
-					pluralName = strcase.ToGoPascal(schemaName + "_" + tableName)
-				} else {
-					pluralName = strcase.ToGoPascal(tableName)
+					backRefName = strcase.ToGoPascal(schemaName + "_" + tableName)
+				}
+
+				if rel.GetName() != "" {
+					backRefName = strcase.ToGoPascal(rel.GetName()) + backRefName
 				}
 
 				backRefIsSlice := relType != shared.RelationType_RELATION_TYPE_ONE_TO_ONE
 				targetModel.Edges = append(targetModel.Edges, EdgeData{
-					Name:          pluralName,
-					NameLower:     strings.ToLower(pluralName),
-					TargetModel:   sourceModel.StructNameExported,
-					IsSlice:       backRefIsSlice,
+					Name:        backRefName,
+					NameLower:   strings.ToLower(backRefName),
+					TargetModel: sourceModel.StructNameExported, IsSlice: backRefIsSlice,
 					LocalColumns:  targetCols,
 					TargetColumns: localCols,
 					LocalFields:   targetFields,
