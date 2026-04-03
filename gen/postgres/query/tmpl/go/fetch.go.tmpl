@@ -98,7 +98,8 @@ func (q *{{ $modelName }}Query) First(
 func (q *{{ $modelName }}Query) Exists(ctx context.Context) (bool, error) {
   var query strings.Builder
   query.Grow(256)
-  query.WriteString(`SELECT EXISTS(SELECT 1 FROM {{ .TableFullName }}`)
+  query.WriteString("SELECT EXISTS(")
+  query.WriteString(`SELECT 1 FROM {{ .TableFullName }}`)
   if q.alias != "" {
     query.WriteString(" AS ")
     query.WriteString(q.alias)
