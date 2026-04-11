@@ -1,0 +1,32 @@
+syntax = "proto3";
+
+package postgres;
+
+import "postgres/table.proto";
+import "postgres/data_type.proto";
+
+// PostgresSchema represents a single logical namespace within a PostgreSQL database.
+// Schemas are used to organize tables, types, and relations, and to prevent
+// naming collisions across different domains of the application.
+message PostgresSchema {
+  // The unique name of the schema namespace (e.g., 'public', 'auth', 'tenant_a').
+  string name = 1;
+
+  // The previous name of this object, used to issue RENAME commands instead of DROP/CREATE.
+  string name_previous = 2;
+
+  // The collection of logical tables contained specifically within this schema namespace.
+  repeated Table tables = 3;
+
+  // Schema-level enum type definitions. Enums are created at the schema level
+  // and can be referenced by columns within tables in this or other schemas.
+  repeated EnumDefinition enums = 4;
+
+  // Schema-level composite type definitions. Composites are created at the schema level
+  // and can be referenced by columns within tables in this or other schemas.
+  repeated CompositeDefinition composites = 5;
+
+  // Schema-level domain type definitions. Domains are created at the schema level
+  // and can be referenced by columns within tables in this or other schemas.
+  repeated DomainDefinition domains = 6;
+}

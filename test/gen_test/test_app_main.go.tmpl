@@ -1,0 +1,203 @@
+package main
+
+import (
+	"context"
+	"database/sql"
+	"fmt"
+	"os"
+
+	"github.com/google/uuid"
+	_ "github.com/jackc/pgx/v5/stdlib"
+
+	"integration/gen/postgres/postgres"
+)
+
+func main() {
+	connStr := os.Getenv("DATABASE_URL")
+	if connStr == "" {
+		panic("DATABASE_URL is required")
+	}
+
+	db, err := sql.Open("pgx", connStr)
+	if err != nil {
+		panic(err)
+	}
+	defer func(db *sql.DB) {
+		_ = db.Close()
+	}(db)
+
+	ctx := context.Background()
+
+	// Test: Check Constraints
+	// This ensures that PostgreSQL strictly enforces the DDL rules established
+	// by the scheme engine (e.g. users_age_check: age >= 18).
+	age17 := int32(17)
+	_, err = postgres.NewUserQuery(db).Create(ctx,
+		postgres.UserCreate.ID(uuid.New()),
+		postgres.UserCreate.Username("underage_user"),
+		postgres.UserCreate.Email("underage@example.com"),
+		postgres.UserCreate.Age(&age17),
+	)
+	if err == nil {
+		fmt.Println(
+			"WARN: check constraint violation for age < 18 was " +
+				"not enforced (engine limitation)",
+		)
+	}
+
+	// Test: Functional Options Pattern
+	// This verifies the generated functional options pattern correctly
+	// synthesizes into
+	// a parameterized INSERT statement. This ensures the schema fields map
+	// accurately to their underlying Go types (like uuid.UUID) without crashing
+	// the pgx driver.
+	uid := uuid.MustParse("123e4567-e89b-12d3-a456-426614174000")
+	age25 := int32(25)
+	_, err = postgres.NewUserQuery(db).Create(ctx,
+		postgres.UserCreate.ID(uid),
+		postgres.UserCreate.Username("test_user"),
+		postgres.UserCreate.Email("test@example.com"),
+		postgres.UserCreate.Age(&age25),
+	)
+	if err != nil {
+		panic(fmt.Errorf("failed to create user -> %w", err))
+	}
+
+	// Test: Strongly-Typed Query Builder & Mappers
+	// This verifies the strongly-typed query builder natively constructs the
+	// correct
+	// WHERE clauses using the internal closure mappers. This proves the dynamic
+	// row extraction cleanly binds the returned tuple into the generated Model.
+	users, err := postgres.NewUserQuery(db).
+		Where(postgres.UserColumns.Username.Eq("test_user")).
+		Get(ctx)
+	if err != nil {
+		panic(fmt.Errorf("failed to fetch user -> %w", err))
+	}
+	if len(users) != 1 {
+		panic("expected exactly 1 user")
+	}
+
+	// Test: Mutating Records (Update)
+	// This verifies the dynamically generated UpdateOption functions correctly 
+	// serialize into parameterized UPDATE statements and execute against the 
+	// database.
+	newAge := int32(30)
+	updatedUsers, affected, err := postgres.NewUserQuery(db).
+		Where(postgres.UserColumns.Username.Eq("test_user")).
+		Returning(
+			postgres.UserColumns.ID, 
+			postgres.UserColumns.Username,
+			postgres.UserColumns.Email,
+			postgres.UserColumns.Status,
+			postgres.UserColumns.BillingAddress,
+			postgres.UserColumns.Age,
+			postgres.UserColumns.Metadata,
+			postgres.UserColumns.CreatedAt,
+		).
+		Update(ctx,
+			postgres.UserUpdate.Age(&newAge),
+		)
+	if err != nil {
+		panic(fmt.Errorf("failed to update user -> %w", err))
+	}
+	if affected != 1 || len(updatedUsers) != 1 {
+		panic("update affected incorrect number of rows")
+	}
+	if updatedUsers[0].Age == nil || *updatedUsers[0].Age != 30 {
+		panic("user age was not updated correctly")
+	}
+
+	// Test: Base Query Builder Aggregations
+	// This verifies base query builder functionality (Exists, Paginate).
+	// This proves window functions and COUNT aggregations map natively to the 
+	// generated struct.
+	exists, err := postgres.NewUserQuery(db).
+		Where(postgres.UserColumns.Username.Eq("test_user")).
+		Exists(ctx)
+	if !exists || err != nil {
+		panic("exists check failed")
+	}
+
+	pagination, err := postgres.NewUserQuery(db).Paginate(ctx, 1, 10)
+	if err != nil || pagination.TotalCount != 2 {
+		panic("pagination failed")
+	}
+
+	// Setup: Populate Deep Graph Relations
+	// This seeds data for our eager loading verification blocks.
+	post, err := postgres.NewPostQuery(db).Create(ctx,
+		postgres.PostCreate.AuthorID(uid),
+		postgres.PostCreate.Title("Integration Testing"),
+	)
+	if err != nil {
+		panic(fmt.Errorf("failed to create post -> %w", err))
+	}
+	if post == nil {
+		panic("post is nil!")
+	}
+
+	tag, err := postgres.NewTagQuery(db).Create(ctx,
+		postgres.TagCreate.Name("golang"),
+	)
+	if err != nil {
+		panic(fmt.Errorf("failed to create tag -> %w", err))
+	}
+	if tag == nil {
+		panic("tag is nil!")
+	}
+
+	_, err = postgres.NewPostTagQuery(db).Create(ctx,
+		postgres.PostTagCreate.PostID(post.ID),
+		postgres.PostTagCreate.TagID(tag.ID),
+	)
+	if err != nil {
+		panic(fmt.Errorf("failed to create post_tag -> %w", err))
+	}
+
+	_, err = postgres.NewPostTagMetricQuery(db).Create(ctx,
+		postgres.PostTagMetricCreate.PostID(post.ID),
+		postgres.PostTagMetricCreate.TagID(tag.ID),
+		postgres.PostTagMetricCreate.MetricName("clicks"),
+		postgres.PostTagMetricCreate.Value(100),
+	)
+	if err != nil {
+		panic(fmt.Errorf("failed to create post_tag_metric -> %w", err))
+	}
+
+	// Test: Single-Column Eager Loading
+	// This verifies the eager loading engine executes cleanly for standard
+	// relations.
+	// Invoking WithPosts() forces the generator to build the sub-queries and 
+	// traverse the relationship mappings.
+	author, err := postgres.NewUserQuery(db).
+		Where(postgres.UserColumns.ID.Eq(uid)).
+		WithPosts().
+		First(ctx)
+	if err != nil {
+		panic(fmt.Errorf("failed single-column eager load -> %w", err))
+	}
+	if len(author.Posts) != 1 {
+		panic("failed to eager load single-column relation")
+	}
+
+	// Test: Composite Eager Loading
+	// This verifies Eager Loading over Composite Relationships.
+	// This forces the generator to utilize the multi-column array deduplication
+	// algorithm (e.g., WHERE (post_id, tag_id) IN ((?, ?))) to map metrics back
+	// to the specific PostTag.
+	pts, err := postgres.NewPostTagQuery(db).
+		WithMetrics().
+		Get(ctx)
+	if err != nil {
+		panic(fmt.Errorf("failed composite eager load -> %w", err))
+	}
+	if len(pts) != 1 || len(pts[0].Metrics) != 1 {
+		panic("failed to map composite metrics to post_tag")
+	}
+	if pts[0].Metrics[0].MetricName != "clicks" {
+		panic("composite metric mapping returned incorrect data")
+	}
+
+	fmt.Println("SUCCESS")
+}

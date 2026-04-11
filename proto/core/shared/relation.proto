@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package core.shared;
+
+import "core/shared/relation_type.proto";
+import "core/shared/relation_column_mapping.proto";
+
+// Relation specifies an explicit non-constraint link to another table.
+// It is primarily used to instruct the code generator on how to eagerly 
+// load related structures in the ORM.
+message Relation {
+  // A unique name for the relation, used in the generated code 
+  // (e.g. 'posts', 'author').
+  string name = 1;
+  
+  // The type/cardinality of the relationship (e.g. 1:N, N:1).
+  RelationType type = 2;
+  
+  // The fully qualified target table this relation points to 
+  // (e.g. 'public.users' or 'users').
+  string target_table = 3;
+  
+  // The columns connecting the source table to the target table.
+  repeated RelationColumnMapping columns = 4;
+}

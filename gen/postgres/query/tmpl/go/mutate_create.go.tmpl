@@ -1,0 +1,204 @@
+{{- /* gotype: github.com/uthereal/scheme/gen/postgres/ast.ModelGo */ -}}
+
+{{- $modelName := .Name }}
+
+// {{ $modelName }}CreateOption defines a strongly-typed functional argument for
+// inserting a {{ $modelName }} record.
+type {{ $modelName }}CreateOption func(map[Column]any)
+
+// {{ $modelName }}Create provides strongly-typed setter functions for
+// inserting a {{ $modelName }} record.
+var {{ $modelName }}Create = struct {
+  {{- range .Fields }}
+    {{ .Name }} func({{ .GoType }}) {{ $modelName }}CreateOption
+    {{- if not (eq .GoType "bool") }}
+    {{ .Name }}Null func() {{ $modelName }}CreateOption
+    {{- end }}
+  {{- end }}
+}{
+  {{- range .Fields }}
+    {{ .Name }}: func(v {{ .GoType }}) {{ $modelName }}CreateOption {
+      return func(m map[Column]any) {
+        m[{{ $modelName }}Columns.{{ .Name }}] = v
+      }
+    },
+    {{- if not (eq .GoType "bool") }}
+    {{ .Name }}Null: func() {{ $modelName }}CreateOption {
+      return func(m map[Column]any) {
+        m[{{ $modelName }}Columns.{{ .Name }}] = nil
+      }
+    },
+    {{- end }}
+  {{- end }}
+}
+
+// Create inserts a single {{ $modelName }} record into the database.
+func (q *{{ $modelName }}Query) Create(
+  ctx context.Context, opts ...{{ $modelName }}CreateOption,
+) (*{{ $modelName }}, error) {
+  if len(q.returning) == 0 {
+    q = q.Returning(
+      {{- range .Fields }}
+        {{ $modelName }}Columns.{{ .Name }},
+      {{- end }}
+    )
+  }
+  res, err := q.CreateMany(ctx, opts)
+  if err != nil {
+    return nil, err
+  }
+  if len(res) == 0 {
+    return nil, nil
+  }
+  return res[0], nil
+}
+
+// CreateMany inserts multiple {{ $modelName }} records into the database in a
+// single batch operation.
+func (q *{{ $modelName }}Query) CreateMany(
+  ctx context.Context, items ...[]{{ $modelName }}CreateOption,
+) ([]*{{ $modelName }}, error) {
+  if len(items) == 0 {
+    return nil, nil
+  }
+
+  // Evaluate the functional options into maps of column -> value
+  rowsData := make([]map[Column]any, 0, len(items))
+  var activeCols []Column
+  colSet := make(map[Column]struct{})
+
+  for _, rowOpts := range items {
+    m := make(map[Column]any)
+    for _, opt := range rowOpts {
+      opt(m)
+    }
+    rowsData = append(rowsData, m)
+
+    // Track all unique columns touched across the entire batch
+    for col := range m {
+      _, exists := colSet[col]
+      if !exists {
+        colSet[col] = struct{}{}
+        activeCols = append(activeCols, col)
+      }
+    }
+  }
+
+  if len(activeCols) == 0 {
+    return nil, errors.New("no columns to insert")
+  }
+
+  var query strings.Builder
+  var numBuf [20]byte
+  query.Grow(512)
+  query.WriteString(`INSERT INTO {{ .TableFullName }} (`)
+
+  for i, col := range activeCols {
+    if i > 0 {
+      query.WriteString(", ")
+    }
+    query.WriteString(col.String())
+  }
+  query.WriteString(") VALUES ")
+
+  var args = make([]any, 0, len(items)*len(activeCols))
+  paramIdx := 1
+
+  for i, m := range rowsData {
+    if i > 0 {
+      query.WriteString(", ")
+    }
+    query.WriteString("(")
+
+    for j, col := range activeCols {
+      if j > 0 {
+        query.WriteString(", ")
+      }
+      val, exists := m[col]
+      if !exists {
+        query.WriteString("DEFAULT")
+      } else {
+        query.WriteString("$")
+        query.Write(strconv.AppendInt(numBuf[:0], int64(paramIdx), 10))
+        args = append(args, val)
+        paramIdx++
+      }
+    }
+    query.WriteString(")")
+  }
+
+  returning := q.returning
+  if len(returning) == 0 {
+    _, err := q.db.ExecContext(ctx, query.String(), args...)
+    if err != nil {
+      return nil, err
+    }
+    return nil, nil
+  }
+
+  query.WriteString(" RETURNING ")
+  colMappers := make([]func(*{{ $modelName }}, []any, int), len(returning))
+
+  for i, col := range returning {
+    if i > 0 {
+      query.WriteString(", ")
+    }
+    query.WriteString(col.String())
+
+    colName := col.String()
+    asIdx := strings.Index(strings.ToUpper(colName), " AS ")
+    if asIdx >= 0 {
+      colName = colName[:asIdx]
+    }
+    idx := strings.LastIndexByte(colName, '.')
+    if idx >= 0 {
+      colName = colName[idx+1:]
+    }
+    colName = strings.Trim(colName, `"`)
+
+    switch colName {
+    {{- range .Fields }}
+    case "{{ .ColumnName }}":
+      colMappers[i] = func(row *{{ $modelName }}, ptrs []any, idx int) {
+        ptrs[idx] = &row.{{ .Name }}
+      }
+    {{- end }}
+    default:
+      return nil, fmt.Errorf("unknown returning column -> %s", col.String())
+    }
+  }
+
+  dbRows, err := q.db.QueryContext(ctx, query.String(), args...)
+  if err != nil {
+    return nil, err
+  }
+  defer func(dbRows *sql.Rows) {
+    _ = dbRows.Close()
+   }(dbRows)
+
+  var results = make([]*{{ $modelName }}, 0, len(items))
+  ptrs := make([]any, len(colMappers))
+  for i := 0; dbRows.Next(); i++ {
+    if i >= len(items) {
+      return nil, errors.New("database returned more rows than expected")
+    }
+
+    var clone {{ $modelName }}
+    for j, mapper := range colMappers {
+      mapper(&clone, ptrs, j)
+    }
+
+    err = dbRows.Scan(ptrs...)
+    if err != nil {
+      return nil, err
+    }
+    results = append(results, &clone)
+  }
+
+  err = dbRows.Err()
+  if err != nil {
+    return nil, err
+  }
+
+  return results, nil
+}

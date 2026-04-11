@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+package core.shared;
+
+// ForeignKeyAction specifies the referential database action triggered 
+// when a referenced row is updated or deleted.
+enum ForeignKeyAction {
+  // Unspecified referential action.
+  FOREIGN_KEY_ACTION_UNSPECIFIED = 0;
+  
+  // Produces an error indicating that the deletion or update would create a 
+  // foreign key constraint violation. If the constraint is deferred, this 
+  // error will be produced at constraint check time if there still exist 
+  // any referencing rows.
+  FOREIGN_KEY_ACTION_NO_ACTION = 1;
+  
+  // Produces an error indicating that the deletion or update would create a 
+  // foreign key constraint violation. This is the same as NO ACTION except 
+  // that the check is not deferrable.
+  FOREIGN_KEY_ACTION_RESTRICT = 2;
+  
+  // Delete any rows referencing the deleted row, or update the values of the 
+  // referencing column(s) to the new values of the referenced columns.
+  FOREIGN_KEY_ACTION_CASCADE = 3;
+  
+  // Set the referencing column(s) to null.
+  FOREIGN_KEY_ACTION_SET_NULL = 4;
+  
+  // Set the referencing column(s) to their default values.
+  FOREIGN_KEY_ACTION_SET_DEFAULT = 5;
+}

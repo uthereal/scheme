@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package postgres;
+
+import "postgres/schema.proto";
+
+// PostgresDatabase represents the entire structural state of a PostgreSQL 
+// database cluster or logical database. It holds the collection of specific 
+// namespaces (schemas) containing all user-defined tables, types, and indexes.
+message PostgresDatabase {
+  // A collection of logically separated namespaces (schemas) that reside 
+  // within this PostgreSQL database. Examples include 'public', 'auth', 
+  // or tenant-specific schema isolation.
+  repeated PostgresSchema schemas = 1;
+}

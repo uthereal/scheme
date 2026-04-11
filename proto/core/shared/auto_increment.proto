@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+package core.shared;
+
+// AutoIncrement defines the sequence parameters for an auto-incrementing column 
+// (e.g., GENERATED AS IDENTITY in PostgreSQL or AUTO_INCREMENT in MySQL).
+message AutoIncrement {
+  // The minimum value the sequence can generate.
+  optional int64 min = 1;
+  
+  // The maximum value the sequence can generate.
+  optional int64 max = 2;
+  
+  // The interval to add to the current sequence value to generate the next value.
+  optional int64 step = 3;
+  
+  // If true, the sequence will wrap around to the minimum value once the maximum 
+  // is reached (or vice versa for descending sequences).
+  bool cycle = 4;
+}

@@ -1,0 +1,894 @@
+{{- if .Active.NumberColumn }}
+type Numeric interface {
+  ~int | ~int8 | ~int16 | ~int32 | ~int64 |
+    ~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr |
+    ~float32 | ~float64 | decimal.Decimal
+}
+{{- end }}
+
+{{- if .Active.TimeColumn }}
+type TimeType interface {
+  time.Time | pgtype.Interval
+}
+{{- end }}
+
+{{- if .Active.JSONColumn }}
+type JSONType interface {
+  []byte | string | json.RawMessage
+}
+{{- end }}
+
+{{- if .Active.GeometricColumn }}
+type GeometricType interface {
+  pgtype.Point | pgtype.Line | pgtype.Lseg | pgtype.Box | pgtype.Path |
+    pgtype.Polygon | pgtype.Circle
+}
+{{- end }}
+
+{{- if .Active.NetworkAddressColumn }}
+type NetworkAddressType interface {
+  netip.Addr | netip.Prefix | net.HardwareAddr
+}
+{{- end }}
+
+// baseColumn is the underlying root type that provides the shared methods
+// for all strongly typed column representations.
+type baseColumn string
+
+// comparableColumn provides basic equality checks for columns.
+type comparableColumn[T any] string
+
+// String returns the column name as a string.
+func (c comparableColumn[T]) String() string {
+  return string(c)
+}
+
+// arrayableColumn provides array inclusion constraints like IN and NOT IN.
+type arrayableColumn[T any] string
+
+// String returns the column name as a string.
+func (c arrayableColumn[T]) String() string {
+  return string(c)
+}
+
+// orderableColumn provides mathematical inequality constraints.
+type orderableColumn[T any] string
+
+// String returns the column name as a string.
+func (c orderableColumn[T]) String() string {
+  return string(c)
+}
+
+{{- if .Active.StringColumn }}
+// StringColumn represents a strongly typed PostgreSQL string/character column.
+// Supported mappings: varchar, char, text, tsvector, tsquery, xml.
+type StringColumn[T ~string] struct {
+  baseColumn
+  comparableColumn[T]
+  arrayableColumn[T]
+  orderableColumn[T]
+}
+
+func (c StringColumn[T]) String() string {
+  return c.baseColumn.String()
+}
+{{- end }}
+
+{{- if .Active.NumberColumn }}
+// NumberColumn represents a strongly typed PostgreSQL numeric column.
+// Supported mappings: smallint, integer, bigint, decimal, numeric, real,
+// double precision, smallserial, serial, bigserial, money, oid, pg_lsn.
+type NumberColumn[T Numeric] struct {
+  baseColumn
+  comparableColumn[T]
+  arrayableColumn[T]
+  orderableColumn[T]
+}
+
+func (c NumberColumn[T]) String() string {
+  return c.baseColumn.String()
+}
+{{- end }}
+
+{{- if .Active.BooleanColumn }}
+// BooleanColumn represents a strongly typed PostgreSQL boolean column.
+// Supported mappings: boolean.
+type BooleanColumn[T ~bool] struct {
+  baseColumn
+  comparableColumn[T]
+  arrayableColumn[T]
+}
+
+func (c BooleanColumn[T]) String() string {
+  return c.baseColumn.String()
+}
+{{- end }}
+
+{{- if .Active.TimeColumn }}
+// TimeColumn represents a strongly typed PostgreSQL date/time column.
+// Supported mappings: timestamp, timestamptz, date, time, timetz, interval.
+type TimeColumn[T TimeType] struct {
+  baseColumn
+  comparableColumn[T]
+  arrayableColumn[T]
+  orderableColumn[T]
+}
+
+func (c TimeColumn[T]) String() string {
+  return c.baseColumn.String()
+}
+{{- end }}
+
+{{- if .Active.ByteColumn }}
+// ByteColumn represents a strongly typed PostgreSQL binary data column.
+// Supported mappings: bytea.
+type ByteColumn[T []byte] struct {
+  baseColumn
+  comparableColumn[T]
+  arrayableColumn[T]
+}
+
+func (c ByteColumn[T]) String() string {
+  return c.baseColumn.String()
+}
+{{- end }}
+
+{{- if .Active.EnumColumn }}
+// EnumColumn represents a strongly typed PostgreSQL enumerated type column.
+// Supported mappings: ENUM.
+type EnumColumn[T ~string] struct {
+  baseColumn
+  comparableColumn[T]
+  arrayableColumn[T]
+}
+
+func (c EnumColumn[T]) String() string {
+  return c.baseColumn.String()
+}
+{{- end }}
+
+{{- if .Active.UUIDColumn }}
+// UUIDColumn represents a strongly typed PostgreSQL UUID column.
+// Supported mappings: uuid.
+type UUIDColumn[T uuid.UUID] struct {
+  baseColumn
+  comparableColumn[T]
+  arrayableColumn[T]
+}
+
+func (c UUIDColumn[T]) String() string {
+  return c.baseColumn.String()
+}
+{{- end }}
+
+{{- if .Active.JSONColumn }}
+// JSONColumn represents a strongly typed PostgreSQL JSON column.
+// Supported mappings: json, jsonb, jsonpath.
+type JSONColumn[T JSONType] struct {
+  baseColumn
+  comparableColumn[T]
+}
+
+func (c JSONColumn[T]) String() string {
+  return c.baseColumn.String()
+}
+{{- end }}
+
+{{- if .Active.ArrayColumn }}
+// ArrayColumn represents a strongly typed PostgreSQL array column.
+// Supported mappings: any PostgreSQL array type (e.g. integer[]).
+type ArrayColumn[T any] struct {
+  baseColumn
+  comparableColumn[T]
+  arrayableColumn[T]
+}
+
+func (c ArrayColumn[T]) String() string {
+  return c.baseColumn.String()
+}
+{{- end }}
+
+{{- if .Active.GeometricColumn }}
+// GeometricColumn represents a strongly typed PostgreSQL geometric column.
+// Supported mappings: point, line, lseg, box, path, polygon, circle.
+type GeometricColumn[T GeometricType] struct {
+  baseColumn
+  comparableColumn[T]
+}
+
+func (c GeometricColumn[T]) String() string {
+  return c.baseColumn.String()
+}
+{{- end }}
+
+{{- if .Active.NetworkAddressColumn }}
+// NetworkAddressColumn represents a strongly typed PostgreSQL network address
+// column.
+// Supported mappings: inet, cidr, macaddr, macaddr8.
+type NetworkAddressColumn[T NetworkAddressType] struct {
+  baseColumn
+  comparableColumn[T]
+  arrayableColumn[T]
+}
+
+func (c NetworkAddressColumn[T]) String() string {
+  return c.baseColumn.String()
+}
+{{- end }}
+
+{{- if .Active.BitStringColumn }}
+// BitStringColumn represents a strongly typed PostgreSQL bit string column.
+// Supported mappings: bit, bit varying.
+type BitStringColumn[T pgtype.Bits] struct {
+  baseColumn
+  comparableColumn[T]
+}
+
+func (c BitStringColumn[T]) String() string {
+  return c.baseColumn.String()
+}
+{{- end }}
+
+{{- if .Active.RangeColumn }}
+// RangeColumn represents a strongly typed PostgreSQL range column.
+// Supported mappings: int4range, int8range, numrange, tsrange, tstzrange,
+// daterange, and custom range types.
+type RangeColumn[T any] struct {
+  baseColumn
+  comparableColumn[T]
+  arrayableColumn[T]
+}
+
+func (c RangeColumn[T]) String() string {
+  return c.baseColumn.String()
+}
+{{- end }}
+
+// DynamicColumn represents a dynamically typed PostgreSQL column.
+// This is primarily used as a fallback for nested fields within composite
+// types where strict generic typing cannot be determined at compile time.
+type DynamicColumn struct {
+  baseColumn
+  comparableColumn[any]
+  arrayableColumn[any]
+  orderableColumn[any]
+}
+
+// String resolves the ambiguous selector for the embedded String methods.
+func (c DynamicColumn) String() string {
+  return c.baseColumn.String()
+}
+
+{{- range .Composites }}
+  {{- $compName := .Name }}
+
+  // {{ $compName }}Column represents a strongly typed PostgreSQL composite
+  // column.
+  type {{ $compName }}Column struct {
+    baseColumn
+    comparableColumn[{{ $compName }}]
+  }
+
+  func (c {{ $compName }}Column) String() string {
+    return c.baseColumn.String()
+  }
+
+  {{- range .Fields }}
+    // {{ .Name }} returns a strongly typed column representing the
+    // {{ .ColumnName }} field.
+    func (c {{ $compName }}Column) {{ .Name }}() {{ .String }} {
+      col := "(" + c.baseColumn.String() + ").{{ .ColumnName }}"
+      return {{ .String }}{
+        baseColumn(col),
+        {{- if .Category.SupportOperatorEquality }}
+          comparableColumn[{{ .GoBaseType }}](col),
+        {{- end }}
+        {{- if .Category.SupportOperatorMembership }}
+          arrayableColumn[{{ .GoBaseType }}](col),
+        {{- end }}
+        {{- if .Category.SupportOperatorRelational }}
+          orderableColumn[{{ .GoBaseType }}](col),
+        {{- end }}
+      }
+    }
+  {{- end }}
+
+  // Field returns a DynamicColumn representing a nested field within the
+  // composite type. It allows for querying against specific struct properties
+  // using PostgreSQL's (column).field syntax.
+  func (c {{ $compName }}Column) Field(name string) DynamicColumn {
+    fieldSql := "(" + c.baseColumn.String() + ")." + name
+    return DynamicColumn{
+      baseColumn:       baseColumn(fieldSql),
+      comparableColumn: comparableColumn[any](fieldSql),
+      arrayableColumn:  arrayableColumn[any](fieldSql),
+      orderableColumn:  orderableColumn[any](fieldSql),
+    }
+  }
+{{- end }}
+
+// DomainColumn represents a strongly typed PostgreSQL domain column.
+// Supported mappings: domain types.
+type DomainColumn[T any] struct {
+  baseColumn
+  comparableColumn[T]
+}
+
+func (c DomainColumn[T]) String() string {
+  return c.baseColumn.String()
+}
+
+// String returns the column name as a string.
+func (c baseColumn) String() string {
+  return string(c)
+}
+
+// As returns a dynamic column aliased with 'AS name'.
+func (c baseColumn) As(alias string) DynamicColumn {
+  sql := c.String() + " AS " + alias
+  return DynamicColumn{
+    baseColumn:       baseColumn(sql),
+    comparableColumn: comparableColumn[any](sql),
+    arrayableColumn:  arrayableColumn[any](sql),
+    orderableColumn:  orderableColumn[any](sql),
+  }
+}
+
+// Count returns a dynamic column formatted as 'COUNT(column)'.
+func Count(c Column) DynamicColumn {
+  sql := "COUNT(" + c.String() + ")"
+  return DynamicColumn{
+    baseColumn:       baseColumn(sql),
+    comparableColumn: comparableColumn[any](sql),
+    arrayableColumn:  arrayableColumn[any](sql),
+    orderableColumn:  orderableColumn[any](sql),
+  }
+}
+
+// Sum returns a dynamic column formatted as 'SUM(column)'.
+func Sum(c Column) DynamicColumn {
+  sql := "SUM(" + c.String() + ")"
+  return DynamicColumn{
+    baseColumn:       baseColumn(sql),
+    comparableColumn: comparableColumn[any](sql),
+    arrayableColumn:  arrayableColumn[any](sql),
+    orderableColumn:  orderableColumn[any](sql),
+  }
+}
+
+// Min returns a dynamic column formatted as 'MIN(column)'.
+func Min(c Column) DynamicColumn {
+  sql := "MIN(" + c.String() + ")"
+  return DynamicColumn{
+    baseColumn:       baseColumn(sql),
+    comparableColumn: comparableColumn[any](sql),
+    arrayableColumn:  arrayableColumn[any](sql),
+    orderableColumn:  orderableColumn[any](sql),
+  }
+}
+
+// Max returns a dynamic column formatted as 'MAX(column)'.
+func Max(c Column) DynamicColumn {
+  sql := "MAX(" + c.String() + ")"
+  return DynamicColumn{
+    baseColumn:       baseColumn(sql),
+    comparableColumn: comparableColumn[any](sql),
+    arrayableColumn:  arrayableColumn[any](sql),
+    orderableColumn:  orderableColumn[any](sql),
+  }
+}
+
+// Avg returns a dynamic column formatted as 'AVG(column)'.
+func Avg(c Column) DynamicColumn {
+  sql := "AVG(" + c.String() + ")"
+  return DynamicColumn{
+    baseColumn:       baseColumn(sql),
+    comparableColumn: comparableColumn[any](sql),
+    arrayableColumn:  arrayableColumn[any](sql),
+    orderableColumn:  orderableColumn[any](sql),
+  }
+}
+
+// IsNull returns a WhereCondition for 'IS NULL'.
+func (c baseColumn) IsNull() WhereCondition {
+  return WhereCondition{Sql: c.String() + " IS NULL"}
+}
+
+// IsNotNull returns a WhereCondition for 'IS NOT NULL'.
+func (c baseColumn) IsNotNull() WhereCondition {
+  return WhereCondition{Sql: c.String() + " IS NOT NULL"}
+}
+
+// IsNil is an alias for IsNull.
+func (c baseColumn) IsNil() WhereCondition {
+  return c.IsNull()
+}
+
+// NotNil is an alias for IsNotNull.
+func (c baseColumn) NotNil() WhereCondition {
+  return c.IsNotNull()
+}
+
+// Eq returns a WhereCondition for '='.
+func (c comparableColumn[T]) Eq(val T) WhereCondition {
+  return WhereCondition{Sql: c.String() + " = ?", Args: []any{val}}
+}
+
+// Neq returns a WhereCondition for '!='.
+func (c comparableColumn[T]) Neq(val T) WhereCondition {
+  return WhereCondition{Sql: c.String() + " != ?", Args: []any{val}}
+}
+
+// In returns a WhereCondition for '= ANY()'.
+func (c arrayableColumn[T]) In(vals ...T) WhereCondition {
+  if len(vals) == 0 {
+    return WhereCondition{Sql: "1=0"}
+  }
+  return WhereCondition{Sql: c.String() + " = ANY(?)", Args: []any{vals}}
+}
+
+// NotIn returns a WhereCondition for '!= ALL()'.
+func (c arrayableColumn[T]) NotIn(vals ...T) WhereCondition {
+  if len(vals) == 0 {
+    return WhereCondition{Sql: "1=1"}
+  }
+  return WhereCondition{Sql: c.String() + " != ALL(?)", Args: []any{vals}}
+}
+
+// InQuery returns a WhereCondition for 'IN' with a sub-query.
+func (c arrayableColumn[T]) InQuery(q QueryBuilder) WhereCondition {
+  return WhereCondition{Sql: c.String() + " IN", Query: q}
+}
+
+// NotInQuery returns a WhereCondition for 'NOT IN' with a sub-query.
+func (c arrayableColumn[T]) NotInQuery(q QueryBuilder) WhereCondition {
+  return WhereCondition{Sql: c.String() + " NOT IN", Query: q}
+}
+
+// Gt returns a WhereCondition for '>'.
+func (c orderableColumn[T]) Gt(val T) WhereCondition {
+  return WhereCondition{Sql: c.String() + " > ?", Args: []any{val}}
+}
+
+// Gte returns a WhereCondition for '>='.
+func (c orderableColumn[T]) Gte(val T) WhereCondition {
+  return WhereCondition{Sql: c.String() + " >= ?", Args: []any{val}}
+}
+
+// Lt returns a WhereCondition for '<'.
+func (c orderableColumn[T]) Lt(val T) WhereCondition {
+  return WhereCondition{Sql: c.String() + " < ?", Args: []any{val}}
+}
+
+// Lte returns a WhereCondition for '<='.
+func (c orderableColumn[T]) Lte(val T) WhereCondition {
+  return WhereCondition{Sql: c.String() + " <= ?", Args: []any{val}}
+}
+
+{{- if .Active.StringColumn }}
+// Like returns a WhereCondition for 'LIKE'.
+func (c StringColumn[T]) Like(val T) WhereCondition {
+  return WhereCondition{Sql: c.String() + " LIKE ?", Args: []any{val}}
+}
+
+// ILike returns a WhereCondition for 'ILIKE'.
+func (c StringColumn[T]) ILike(val T) WhereCondition {
+  return WhereCondition{Sql: c.String() + " ILIKE ?", Args: []any{val}}
+}
+
+// StartsWith returns a WhereCondition for 'LIKE' with a right wildcard.
+func (c StringColumn[T]) StartsWith(val T) WhereCondition {
+  return WhereCondition{Sql: c.String() + " LIKE ?",
+    Args: []any{string(val) + "%"},
+  }
+}
+
+// EndsWith returns a WhereCondition for 'LIKE' with a left wildcard.
+func (c StringColumn[T]) EndsWith(val T) WhereCondition {
+  return WhereCondition{Sql: c.String() + " LIKE ?",
+    Args: []any{"%" + string(val)},
+  }
+}
+
+// Contains returns a WhereCondition for 'LIKE' with wildcards on both sides.
+func (c StringColumn[T]) Contains(val T) WhereCondition {
+  return WhereCondition{
+    Sql: c.String() + " LIKE ?", Args: []any{"%" + string(val) + "%"},
+  }
+}
+
+// HasPrefix is an alias for StartsWith.
+func (c StringColumn[T]) HasPrefix(val T) WhereCondition {
+  return c.StartsWith(val)
+}
+
+// HasSuffix is an alias for EndsWith.
+func (c StringColumn[T]) HasSuffix(val T) WhereCondition {
+  return c.EndsWith(val)
+}
+
+// ContainsFold returns a WhereCondition for case-insensitive 'ILIKE' with
+// wildcards on both sides.
+func (c StringColumn[T]) ContainsFold(val T) WhereCondition {
+  return WhereCondition{
+    Sql: c.String() + " ILIKE ?", Args: []any{"%" + string(val) + "%"},
+  }
+}
+
+// EqualFold returns a WhereCondition for case-insensitive 'ILIKE'.
+func (c StringColumn[T]) EqualFold(val T) WhereCondition {
+  return WhereCondition{
+    Sql: c.String() + " ILIKE ?", Args: []any{val},
+  }
+}
+{{- end }}
+
+{{- if .Active.JSONColumn }}
+// HasKey returns a WhereCondition for JSON '?'.
+func (c JSONColumn[T]) HasKey(key string) WhereCondition {
+  return WhereCondition{
+    Sql:  "jsonb_exists(" + c.String() + ", ?)",
+    Args: []any{key},
+  }
+}
+
+// HasAnyKey returns a WhereCondition for JSON '?|'.
+func (c JSONColumn[T]) HasAnyKey(keys ...string) WhereCondition {
+  return WhereCondition{
+    Sql:  "jsonb_exists_any(" + c.String() + ", ?)",
+    Args: []any{keys},
+  }
+}
+
+// HasAllKeys returns a WhereCondition for JSON '?&'.
+func (c JSONColumn[T]) HasAllKeys(keys ...string) WhereCondition {
+  return WhereCondition{
+    Sql:  "jsonb_exists_all(" + c.String() + ", ?)",
+    Args: []any{keys},
+  }
+}
+
+// Contains returns a WhereCondition for JSON '@>'.
+func (c JSONColumn[T]) Contains(val T) WhereCondition {
+  return WhereCondition{Sql: c.String() + " @> ?", Args: []any{val}}
+}
+
+// ContainedBy returns a WhereCondition for JSON '<@'.
+func (c JSONColumn[T]) ContainedBy(val T) WhereCondition {
+  return WhereCondition{Sql: c.String() + " <@ ?", Args: []any{val}}
+}
+
+// LenEq returns a WhereCondition checking the length of a JSON array.
+func (c JSONColumn[T]) LenEq(length int) WhereCondition {
+  return WhereCondition{
+    Sql:  "jsonb_array_length(" + c.String() + ") = ?",
+    Args: []any{length},
+  }
+}
+
+// LenNeq returns a WhereCondition checking the length of a JSON array.
+func (c JSONColumn[T]) LenNeq(length int) WhereCondition {
+  return WhereCondition{
+    Sql:  "jsonb_array_length(" + c.String() + ") != ?",
+    Args: []any{length},
+  }
+}
+
+// LenGt returns a WhereCondition checking the length of a JSON array.
+func (c JSONColumn[T]) LenGt(length int) WhereCondition {
+  return WhereCondition{
+    Sql:  "jsonb_array_length(" + c.String() + ") > ?",
+    Args: []any{length},
+  }
+}
+
+// LenLt returns a WhereCondition checking the length of a JSON array.
+func (c JSONColumn[T]) LenLt(length int) WhereCondition {
+  return WhereCondition{
+    Sql:  "jsonb_array_length(" + c.String() + ") < ?",
+    Args: []any{length},
+  }
+}
+
+// LenGte returns a WhereCondition checking the length of a JSON array.
+func (c JSONColumn[T]) LenGte(length int) WhereCondition {
+  return WhereCondition{
+    Sql:  "jsonb_array_length(" + c.String() + ") >= ?",
+    Args: []any{length},
+  }
+}
+
+// LenLte returns a WhereCondition checking the length of a JSON array.
+func (c JSONColumn[T]) LenLte(length int) WhereCondition {
+  return WhereCondition{
+    Sql:  "jsonb_array_length(" + c.String() + ") <= ?",
+    Args: []any{length},
+  }
+}
+
+func (c JSONColumn[T]) buildPath(path []string) (string, []any) {
+  var sql strings.Builder
+  sql.WriteString("(")
+  sql.WriteString(c.String())
+  args := make([]any, len(path))
+  for i, p := range path {
+    sql.WriteString(" -> ?")
+    args[i] = p
+  }
+  sql.WriteString(")")
+  return sql.String(), args
+}
+
+// PathEq checks equality at a specific nested JSON path.
+func (c JSONColumn[T]) PathEq(path []string, val any) WhereCondition {
+  b, _ := json.Marshal(val)
+  sql, args := c.buildPath(path)
+  return WhereCondition{
+    Sql:  sql + " = ?::jsonb",
+    Args: append(args, string(b)),
+  }
+}
+
+// PathNeq checks inequality at a specific nested JSON path.
+func (c JSONColumn[T]) PathNeq(path []string, val any) WhereCondition {
+  b, _ := json.Marshal(val)
+  sql, args := c.buildPath(path)
+  return WhereCondition{
+    Sql:  sql + " != ?::jsonb",
+    Args: append(args, string(b)),
+  }
+}
+
+// PathGt checks greater-than at a specific nested JSON path.
+func (c JSONColumn[T]) PathGt(path []string, val any) WhereCondition {
+  b, _ := json.Marshal(val)
+  sql, args := c.buildPath(path)
+  return WhereCondition{
+    Sql:  sql + " > ?::jsonb",
+    Args: append(args, string(b)),
+  }
+}
+
+// PathLt checks less-than at a specific nested JSON path.
+func (c JSONColumn[T]) PathLt(path []string, val any) WhereCondition {
+  b, _ := json.Marshal(val)
+  sql, args := c.buildPath(path)
+  return WhereCondition{
+    Sql:  sql + " < ?::jsonb",
+    Args: append(args, string(b)),
+  }
+}
+
+// PathGte checks greater-than-or-equal at a specific nested JSON path.
+func (c JSONColumn[T]) PathGte(path []string, val any) WhereCondition {
+  b, _ := json.Marshal(val)
+  sql, args := c.buildPath(path)
+  return WhereCondition{
+    Sql:  sql + " >= ?::jsonb",
+    Args: append(args, string(b)),
+  }
+}
+
+// PathLte checks less-than-or-equal at a specific nested JSON path.
+func (c JSONColumn[T]) PathLte(path []string, val any) WhereCondition {
+  b, _ := json.Marshal(val)
+  sql, args := c.buildPath(path)
+  return WhereCondition{
+    Sql:  sql + " <= ?::jsonb",
+    Args: append(args, string(b)),
+  }
+}
+
+// PathContains checks if the nested JSON path contains the given value.
+func (c JSONColumn[T]) PathContains(path []string, val any) WhereCondition {
+  b, _ := json.Marshal(val)
+  sql, args := c.buildPath(path)
+  return WhereCondition{
+    Sql:  sql + " @> ?::jsonb",
+    Args: append(args, string(b)),
+  }
+}
+
+// PathIsNull checks if the nested JSON path evaluates to SQL NULL or JSON
+// 'null'.
+func (c JSONColumn[T]) PathIsNull(path []string) WhereCondition {
+  sql, args := c.buildPath(path)
+  return WhereCondition{
+    Sql:  "(" + sql + " IS NULL OR " + sql + " = 'null'::jsonb)",
+    Args: append(args, args...),
+  }
+}
+
+// PathIsNotNull checks if the nested JSON path exists and is not JSON 'null'.
+func (c JSONColumn[T]) PathIsNotNull(path []string) WhereCondition {
+  sql, args := c.buildPath(path)
+  return WhereCondition{
+    Sql:  "(" + sql + " IS NOT NULL AND " + sql + " != 'null'::jsonb)",
+    Args: append(args, args...),
+  }
+}
+{{- end }}
+
+{{- if .Active.ArrayColumn }}
+// Contains returns a WhereCondition for Array '@>'.
+func (c ArrayColumn[T]) Contains(val T) WhereCondition {
+  return WhereCondition{Sql: c.String() + " @> ?", Args: []any{val}}
+}
+
+// ContainedBy returns a WhereCondition for Array '<@'.
+func (c ArrayColumn[T]) ContainedBy(val T) WhereCondition {
+  return WhereCondition{Sql: c.String() + " <@ ?", Args: []any{val}}
+}
+
+// Overlaps returns a WhereCondition for Array '&&'.
+func (c ArrayColumn[T]) Overlaps(val T) WhereCondition {
+  return WhereCondition{Sql: c.String() + " && ?", Args: []any{val}}
+}
+{{- end }}
+
+{{- if .Active.RangeColumn }}
+// Contains returns a WhereCondition for Range '@>'.
+func (c RangeColumn[T]) Contains(val T) WhereCondition {
+  return WhereCondition{Sql: c.String() + " @> ?", Args: []any{val}}
+}
+
+// ContainsElement returns a WhereCondition for Range '@>' with a single
+// element.
+func (c RangeColumn[T]) ContainsElement(val any) WhereCondition {
+  return WhereCondition{Sql: c.String() + " @> ?", Args: []any{val}}
+}
+
+// ContainedBy returns a WhereCondition for Range '<@'.
+func (c RangeColumn[T]) ContainedBy(val T) WhereCondition {
+  return WhereCondition{Sql: c.String() + " <@ ?", Args: []any{val}}
+}
+
+// Overlaps returns a WhereCondition for Range '&&'.
+func (c RangeColumn[T]) Overlaps(val T) WhereCondition {
+  return WhereCondition{Sql: c.String() + " && ?", Args: []any{val}}
+}
+
+// StrictlyLeftOf returns a WhereCondition for Range '<<'.
+func (c RangeColumn[T]) StrictlyLeftOf(val T) WhereCondition {
+  return WhereCondition{Sql: c.String() + " << ?", Args: []any{val}}
+}
+
+// StrictlyRightOf returns a WhereCondition for Range '>>'.
+func (c RangeColumn[T]) StrictlyRightOf(val T) WhereCondition {
+  return WhereCondition{Sql: c.String() + " >> ?", Args: []any{val}}
+}
+
+// DoesNotExtendToRightOf returns a WhereCondition for Range '&<'.
+func (c RangeColumn[T]) DoesNotExtendToRightOf(val T) WhereCondition {
+  return WhereCondition{Sql: c.String() + " &< ?", Args: []any{val}}
+}
+
+// DoesNotExtendToLeftOf returns a WhereCondition for Range '&>'.
+func (c RangeColumn[T]) DoesNotExtendToLeftOf(val T) WhereCondition {
+  return WhereCondition{Sql: c.String() + " &> ?", Args: []any{val}}
+}
+
+// IsAdjacentTo returns a WhereCondition for Range '-|-'.
+func (c RangeColumn[T]) IsAdjacentTo(val T) WhereCondition {
+  return WhereCondition{Sql: c.String() + " -|- ?", Args: []any{val}}
+}
+{{- end }}
+
+{{- if .Active.GeometricColumn }}
+// StrictlyLeftOf returns a WhereCondition for Geometric '<<'.
+func (c GeometricColumn[T]) StrictlyLeftOf(val T) WhereCondition {
+  return WhereCondition{Sql: c.String() + " << ?", Args: []any{val}}
+}
+
+// StrictlyRightOf returns a WhereCondition for Geometric '>>'.
+func (c GeometricColumn[T]) StrictlyRightOf(val T) WhereCondition {
+  return WhereCondition{Sql: c.String() + " >> ?", Args: []any{val}}
+}
+
+// StrictlyBelow returns a WhereCondition for Geometric '<<|'.
+func (c GeometricColumn[T]) StrictlyBelow(val T) WhereCondition {
+  return WhereCondition{Sql: c.String() + " <<| ?", Args: []any{val}}
+}
+
+// StrictlyAbove returns a WhereCondition for Geometric '|>>'.
+func (c GeometricColumn[T]) StrictlyAbove(val T) WhereCondition {
+  return WhereCondition{Sql: c.String() + " |>> ?", Args: []any{val}}
+}
+
+// DoesNotExtendToRightOf returns a WhereCondition for Geometric '&<'.
+func (c GeometricColumn[T]) DoesNotExtendToRightOf(val T) WhereCondition {
+  return WhereCondition{Sql: c.String() + " &< ?", Args: []any{val}}
+}
+
+// DoesNotExtendToLeftOf returns a WhereCondition for Geometric '&>'.
+func (c GeometricColumn[T]) DoesNotExtendToLeftOf(val T) WhereCondition {
+  return WhereCondition{Sql: c.String() + " &> ?", Args: []any{val}}
+}
+
+// DoesNotExtendAbove returns a WhereCondition for Geometric '&<|'.
+func (c GeometricColumn[T]) DoesNotExtendAbove(val T) WhereCondition {
+  return WhereCondition{Sql: c.String() + " &<| ?", Args: []any{val}}
+}
+
+// DoesNotExtendBelow returns a WhereCondition for Geometric '|&>'.
+func (c GeometricColumn[T]) DoesNotExtendBelow(val T) WhereCondition {
+  return WhereCondition{Sql: c.String() + " |&> ?", Args: []any{val}}
+}
+
+// Overlaps returns a WhereCondition for Geometric '&&'.
+func (c GeometricColumn[T]) Overlaps(val T) WhereCondition {
+  return WhereCondition{Sql: c.String() + " && ?", Args: []any{val}}
+}
+
+// Contains returns a WhereCondition for Geometric '@>'.
+func (c GeometricColumn[T]) Contains(val T) WhereCondition {
+  return WhereCondition{Sql: c.String() + " @> ?", Args: []any{val}}
+}
+
+// ContainedBy returns a WhereCondition for Geometric '<@'.
+func (c GeometricColumn[T]) ContainedBy(val T) WhereCondition {
+  return WhereCondition{Sql: c.String() + " <@ ?", Args: []any{val}}
+}
+
+// SameAs returns a WhereCondition for Geometric '~='.
+func (c GeometricColumn[T]) SameAs(val T) WhereCondition {
+  return WhereCondition{Sql: c.String() + " ~= ?", Args: []any{val}}
+}
+{{- end }}
+
+{{- if .Active.NetworkAddressColumn }}
+// Contains returns a WhereCondition for NetworkAddress '>>'.
+func (c NetworkAddressColumn[T]) Contains(val T) WhereCondition {
+  return WhereCondition{Sql: c.String() + " >> ?", Args: []any{val}}
+}
+
+// ContainsOrEquals returns a WhereCondition for NetworkAddress '>>='.
+func (c NetworkAddressColumn[T]) ContainsOrEquals(val T) WhereCondition {
+  return WhereCondition{Sql: c.String() + " >>= ?", Args: []any{val}}
+}
+
+// ContainedBy returns a WhereCondition for NetworkAddress '<<'.
+func (c NetworkAddressColumn[T]) ContainedBy(val T) WhereCondition {
+  return WhereCondition{Sql: c.String() + " << ?", Args: []any{val}}
+}
+
+// ContainedByOrEquals returns a WhereCondition for NetworkAddress '<<='.
+func (c NetworkAddressColumn[T]) ContainedByOrEquals(val T) WhereCondition {
+  return WhereCondition{Sql: c.String() + " <<= ?", Args: []any{val}}
+}
+
+// ContainsOrIsContainedBy returns a WhereCondition for NetworkAddress '&&'.
+func (c NetworkAddressColumn[T]) ContainsOrIsContainedBy(val T) WhereCondition {
+  return WhereCondition{Sql: c.String() + " && ?", Args: []any{val}}
+}
+{{- end }}
+
+{{- if .Active.BitStringColumn }}
+// Contains returns a WhereCondition for BitString '>>'.
+func (c BitStringColumn[T]) Contains(val T) WhereCondition {
+  return WhereCondition{Sql: c.String() + " >> ?", Args: []any{val}}
+}
+
+// ContainedBy returns a WhereCondition for BitString '<<'.
+func (c BitStringColumn[T]) ContainedBy(val T) WhereCondition {
+  return WhereCondition{Sql: c.String() + " << ?", Args: []any{val}}
+}
+
+// Overlaps returns a WhereCondition for BitString '&&'.
+func (c BitStringColumn[T]) Overlaps(val T) WhereCondition {
+  return WhereCondition{Sql: c.String() + " && ?", Args: []any{val}}
+}
+{{- end }}
+
+{{- range .Composites }}
+// Composite{{ .Name }}Column represents a strongly typed PostgreSQL composite
+// column.
+type Composite{{ .Name }}Column struct {
+  baseColumn
+  comparableColumn[{{ .Name }}]
+}
+
+func (c Composite{{ .Name }}Column) String() string {
+  return c.baseColumn.String()
+}
+{{- end }}

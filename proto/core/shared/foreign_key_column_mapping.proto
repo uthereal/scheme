@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+package core.shared;
+
+// ForeignKeyColumnMapping specifies how a local column binds to a target 
+// column to enforce referential integrity.
+message ForeignKeyColumnMapping {
+  // The local column name in the source table.
+  string source_column = 1;
+  
+  // The referenced column name in the target table.
+  string target_column = 2;
+}

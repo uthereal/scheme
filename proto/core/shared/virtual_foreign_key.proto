@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package core.shared;
+
+import "core/shared/foreign_key_column_mapping.proto";
+
+// VirtualForeignKey represents a relationship between tables that functions
+// exactly like a standard foreign key for ORMs, query builders, and code 
+// generation, but does NOT result in an actual database constraint being 
+// physically created or enforced by the database engine.
+message VirtualForeignKey {
+  // A unique identifier for the virtual foreign key, used for codegen relations.
+  string name = 1;
+  
+  // The fully qualified target table this virtual key points to 
+  // (e.g. 'public.users' or 'users').
+  string target_table = 2;
+  
+  // Mappings of local source columns to the referenced target columns.
+  repeated ForeignKeyColumnMapping columns = 3;
+}

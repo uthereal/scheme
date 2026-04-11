@@ -1,0 +1,151 @@
+{{- /* gotype: github.com/uthereal/scheme/gen/postgres/ast.ModelGo */ -}}
+
+{{- $modelName := .Name }}
+
+// buildSelect constructs the SELECT clause and closure mappers for the query.
+func (q *{{ $modelName }}Query) buildSelect() (
+  string, []func(*{{ $modelName }}, []any, int), error,
+) {
+  cols := q.selects
+  if len(cols) == 0 {
+    cols = []Column{
+      {{- range .Fields }}
+        {{ $modelName }}Columns.{{ .Name }},
+      {{- end }}
+    }
+  }
+
+  var colStr strings.Builder
+  colStr.Grow(128)
+  colMappers := make([]func(*{{ $modelName }}, []any, int), len(cols))
+
+  for i, col := range cols {
+    if i > 0 {
+      colStr.WriteString(", ")
+    }
+    colStr.WriteString(col.String())
+
+    colName := col.String()
+    asIdx := strings.Index(strings.ToUpper(colName), " AS ")
+    if asIdx >= 0 {
+      colName = colName[:asIdx]
+    }
+    idx := strings.LastIndexByte(colName, '.')
+    if idx >= 0 {
+      colName = colName[idx+1:]
+    }
+    colName = strings.Trim(colName, `"`)
+
+    switch colName {
+    {{- range .Fields }}
+    case "{{ .ColumnName }}":
+      colMappers[i] = func(row *{{ $modelName }}, ptrs []any, idx int) {
+        ptrs[idx] = &row.{{ .Name }}
+      }
+    {{- end }}
+    default:
+      return "", nil, fmt.Errorf("unknown column -> %s", col.String())
+    }
+  }
+
+  return colStr.String(), colMappers, nil
+}
+
+// ToSelectSQL builds the complete parameterized SELECT SQL statement 
+// and its arguments.
+func (q *{{ $modelName }}Query) ToSelectSQL(
+  startParamIdx int, withCount bool,
+) (string, []any, error) {
+  colStr, _, err := q.buildSelect()
+  if err != nil {
+    return "", nil, err
+  }
+
+  var query strings.Builder
+  var numBuf [20]byte
+  query.Grow(256)
+  query.WriteString("SELECT ")
+  query.WriteString(colStr)
+
+  if withCount {
+    query.WriteString(", COUNT(*) OVER()")
+  }
+  query.WriteString(` FROM {{ .TableFullName }}`)
+  if q.alias != "" {
+    query.WriteString(" AS ")
+    query.WriteString(q.alias)
+  }
+
+  var args []any
+  paramIdx := startParamIdx
+
+  if len(q.wheres) > 0 {
+    query.WriteString(" WHERE ")
+    whereSQL, whereArgs, err := buildConditions(q.wheres, &paramIdx)
+    if err != nil {
+      return "", nil, err
+    }
+    query.WriteString(whereSQL)
+    args = append(args, whereArgs...)
+  }
+
+  if len(q.groupBys) > 0 {
+    query.WriteString(" GROUP BY ")
+    for i, ob := range q.groupBys {
+      if i > 0 {
+        query.WriteString(", ")
+      }
+      query.WriteString(ob.String())
+    }
+  }
+
+  if len(q.havings) > 0 {
+    query.WriteString(" HAVING ")
+    havingSQL, havingArgs, err := buildConditions(q.havings, &paramIdx)
+    if err != nil {
+      return "", nil, err
+    }
+    query.WriteString(havingSQL)
+    args = append(args, havingArgs...)
+  }
+
+  if len(q.orderBys) > 0 {
+    query.WriteString(" ORDER BY ")
+    for i, ob := range q.orderBys {
+      if i > 0 {
+        query.WriteString(", ")
+      }
+      if ob.Query != nil {
+        query.WriteString("(")
+        subSQL, subArgs, err := ob.Query.ToSelectSQL(paramIdx, false)
+        if err != nil {
+          return "", nil, err
+        }
+        query.WriteString(subSQL)
+        query.WriteString(") ")
+        args = append(args, subArgs...)
+        paramIdx += len(subArgs)
+      } else {
+        query.WriteString(ob.Column)
+        query.WriteString(" ")
+      }
+      query.WriteString(string(ob.Direction))
+    }
+  }
+
+  if q.limit != nil {
+    query.WriteString(" LIMIT $")
+    query.Write(strconv.AppendInt(numBuf[:0], int64(paramIdx), 10))
+    args = append(args, *q.limit)
+    paramIdx++
+  }
+
+  if q.offset != nil {
+    query.WriteString(" OFFSET $")
+    query.Write(strconv.AppendInt(numBuf[:0], int64(paramIdx), 10))
+    args = append(args, *q.offset)
+    paramIdx++
+  }
+
+  return query.String(), args, nil
+}

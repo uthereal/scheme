@@ -1,0 +1,202 @@
+# proto-file: proto/scheme.proto
+# proto-message: scheme.Scheme
+
+databases: {
+  name: "postgres"
+  postgres: {
+    schemas: {
+      name: "public"
+      enums: [
+        { name: "user_status", values: ["ACTIVE", "INACTIVE", "BANNED"] }
+      ]
+      composites: [
+        {
+          name: "address"
+          fields: [
+            { name: "street", type: { varchar_type: { length: 255 } } },
+            { name: "city", type: { varchar_type: { length: 100 } } },
+            { name: "zip", type: { varchar_type: { length: 20 } } }
+          ]
+        }
+      ]
+      domains: [
+        { name: "email_address", base_type: { varchar_type: { length: 255 } } }
+      ]
+      tables: [
+        {
+          name: "users"
+          columns: [
+            { name: "id", type: { uuid_type: {} }, default_value: "gen_random_uuid()" },
+            { name: "username", type: { varchar_type: { length: 50 } } },
+            { name: "email", type: { domain_type: { name: "email_address", schema: "public" } } },
+            {
+              name: "status",
+              type: { enum_type: { name: "user_status", schema: "public" } },
+              default_value: "'ACTIVE'"
+            },
+            {
+              name: "billing_address",
+              type: { composite_type: { name: "address", schema: "public" } },
+              is_nullable: true
+            },
+            { name: "age", type: { integer_type: {} }, is_nullable: true },
+            { name: "metadata", type: { jsonb_type: {} }, is_nullable: false, default_value: "'{}'" },
+            { name: "created_at", type: { timestamptz_type: { precision: 6 } }, default_value: "now()" }
+          ]
+          primary_keys: ["id"]
+          indexes: [
+            { name: "users_username_key", columns: [{ name: "username" }], is_unique: true }
+          ]
+          checks: [
+            { name: "users_age_check", column: "age", predicate: "age >= 18" }
+          ]
+          relations: [
+            {
+              name: "posts"
+              type: RELATION_TYPE_ONE_TO_MANY
+              target_table: "posts"
+              columns: [{ source_column: "id", target_column: "author_id" }]
+            }
+          ]
+        },
+        {
+          name: "posts"
+          columns: [
+            { name: "id", type: { bigserial_type: {} } },
+            { name: "author_id", type: { uuid_type: {} } },
+            { name: "title", type: { text_type: {} } },
+            { name: "body", type: { text_type: {} }, is_nullable: true },
+            { name: "views", type: { bigint_type: {} }, default_value: "0" }
+          ]
+          primary_keys: ["id"]
+          foreign_keys: [
+            {
+              name: "fk_posts_author"
+              target_table: "users"
+              columns: [{ source_column: "author_id", target_column: "id" }]
+              on_delete: FOREIGN_KEY_ACTION_CASCADE
+            }
+          ]
+          relations: [
+            {
+              name: "author"
+              type: RELATION_TYPE_MANY_TO_ONE
+              target_table: "users"
+              columns: [{ source_column: "author_id", target_column: "id" }]
+            },
+            {
+              name: "post_tags"
+              type: RELATION_TYPE_ONE_TO_MANY
+              target_table: "post_tags"
+              columns: [{ source_column: "id", target_column: "post_id" }]
+            }
+          ]
+        },
+        {
+          name: "tags"
+          columns: [
+            { name: "id", type: { serial_type: {} } },
+            { name: "name", type: { varchar_type: { length: 50 } } }
+          ]
+          primary_keys: ["id"]
+          indexes: [
+            { name: "tags_name_key", columns: [{ name: "name" }], is_unique: true }
+          ]
+        },
+        {
+          name: "post_tags"
+          columns: [
+            { name: "post_id", type: { bigint_type: {} } },
+            { name: "tag_id", type: { integer_type: {} } }
+          ]
+          primary_keys: ["post_id", "tag_id"]
+          foreign_keys: [
+            {
+              name: "fk_post_tags_post"
+              target_table: "posts"
+              columns: [{ source_column: "post_id", target_column: "id" }]
+              on_delete: FOREIGN_KEY_ACTION_CASCADE
+            },
+            {
+              name: "fk_post_tags_tag"
+              target_table: "tags"
+              columns: [{ source_column: "tag_id", target_column: "id" }]
+              on_delete: FOREIGN_KEY_ACTION_CASCADE
+            }
+          ]
+          relations: [
+            {
+              name: "metrics"
+              type: RELATION_TYPE_ONE_TO_MANY
+              target_table: "post_tag_metrics"
+              columns: [
+                { source_column: "post_id", target_column: "post_id" },
+                { source_column: "tag_id", target_column: "tag_id" }
+              ]
+            }
+          ]
+        },
+        {
+          name: "post_tag_metrics"
+          columns: [
+            { name: "post_id", type: { bigint_type: {} } },
+            { name: "tag_id", type: { integer_type: {} } },
+            { name: "metric_name", type: { varchar_type: { length: 50 } } },
+            { name: "value", type: { integer_type: {} }, default_value: "0" }
+          ]
+          primary_keys: ["post_id", "tag_id", "metric_name"]
+          foreign_keys: [
+            {
+              name: "fk_pt_metrics_pt"
+              target_table: "post_tags"
+              columns: [
+                { source_column: "post_id", target_column: "post_id" },
+                { source_column: "tag_id", target_column: "tag_id" }
+              ]
+              on_delete: FOREIGN_KEY_ACTION_CASCADE
+            }
+          ]
+        },
+        {
+          name: "disposable_table"
+          columns: [
+            { name: "id", type: { serial_type: {} } },
+            { name: "val", type: { text_type: {} } }
+          ]
+        }
+      ]
+    }
+    schemas: {
+      name: "audit"
+      enums: [
+        { name: "log_level", values: ["INFO", "ERROR"] }
+      ]
+      composites: [
+        {
+          name: "geo_location"
+          fields: [
+            { name: "lat", type: { real_type: {} } },
+            { name: "lon", type: { real_type: {} } }
+          ]
+        }
+      ]
+      domains: [
+        { name: "ip_address", base_type: { varchar_type: { length: 45 } } }
+      ]
+      tables: [
+        {
+          name: "temporary_logs"
+          columns: [
+            { name: "id", type: { uuid_type: {} }, default_value: "gen_random_uuid()" },
+            { name: "level", type: { enum_type: { name: "log_level", schema: "audit" } } },
+            { name: "source_ip", type: { domain_type: { name: "ip_address", schema: "audit" } } },
+            { name: "location", type: { composite_type: { name: "geo_location", schema: "audit" } } }
+          ]
+        }
+      ]
+    }
+    schemas: {
+      name: "disposable_schema"
+    }
+  }
+}
