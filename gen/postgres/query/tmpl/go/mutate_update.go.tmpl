@@ -4,7 +4,7 @@
 
 // {{ $modelName }}UpdateOption defines a strongly-typed functional argument for
 // updating a {{ $modelName }} record.
-type {{ $modelName }}UpdateOption func(map[Column]any)
+type {{ $modelName }}UpdateOption func(map[rootpkg.Column]any)
 
 // {{ $modelName }}Update provides strongly-typed setter functions for
 // updating a {{ $modelName }} record.
@@ -18,13 +18,13 @@ var {{ $modelName }}Update = struct {
 }{
   {{- range .Fields }}
     {{ .Name }}: func(v {{ .GoType }}) {{ $modelName }}UpdateOption {
-      return func(m map[Column]any) {
+      return func(m map[rootpkg.Column]any) {
         m[{{ $modelName }}Columns.{{ .Name }}] = v
       }
     },
     {{- if not (eq .GoType "bool") }}
     {{ .Name }}Null: func() {{ $modelName }}UpdateOption {
-      return func(m map[Column]any) {
+      return func(m map[rootpkg.Column]any) {
         m[{{ $modelName }}Columns.{{ .Name }}] = nil
       }
     },
@@ -37,12 +37,25 @@ var {{ $modelName }}Update = struct {
 // clause is used, or the number of affected rows otherwise.
 func (q *{{ $modelName }}Query) Update(
   ctx context.Context, opts ...{{ $modelName }}UpdateOption,
+) (*{{ $modelName }}, error) {
+  res, _, err := q.UpdateMany(ctx, opts...)
+  if err != nil {
+    return nil, err
+  }
+  if len(res) == 0 {
+    return nil, nil
+  }
+  return res[0], nil
+}
+
+func (q *{{ $modelName }}Query) UpdateMany(
+  ctx context.Context, opts ...{{ $modelName }}UpdateOption,
 ) ([]*{{ $modelName }}, int64, error) {
   if len(opts) == 0 {
     return nil, 0, errors.New("no update options provided")
   }
 
-  m := make(map[Column]any)
+  m := make(map[rootpkg.Column]any)
   for _, opt := range opts {
     opt(m)
   }
@@ -83,7 +96,7 @@ func (q *{{ $modelName }}Query) Update(
 
   if len(q.wheres) > 0 {
     query.WriteString(" WHERE ")
-    whereSQL, whereArgs, err := buildConditions(q.wheres, &paramIdx)
+    whereSQL, whereArgs, err := rootpkg.BuildConditions(q.wheres, &paramIdx)
     if err != nil {
       return nil, 0, err
     }

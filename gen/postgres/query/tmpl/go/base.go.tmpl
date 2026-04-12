@@ -6,13 +6,13 @@
 // {{ $modelNameExported }}Query represents a strongly typed query builder for
 // the {{ .TableFullName }} table.
 type {{ $modelNameExported }}Query struct {
-  db        DBQuerier
+  db        rootpkg.DBQuerier
   alias     string
-  selects   []Column
-  returning []Column
-  wheres    []WhereCondition
-  groupBys  []Column
-  havings   []WhereCondition
+  selects   []rootpkg.Column
+  returning []rootpkg.Column
+  wheres    []rootpkg.WhereCondition
+  groupBys  []rootpkg.Column
+  havings   []rootpkg.WhereCondition
   orderBys  []{{ $modelNamePrivate }}OrderBy
   limit     *int
   offset    *int
@@ -42,8 +42,8 @@ type {{ $modelNameExported }}Pagination struct {
 // {{ $modelNameExported }}Query.
 type {{ $modelNamePrivate }}OrderBy struct {
   Column    string
-  Query     QueryBuilder
-  Direction OrderDirection
+  Query     rootpkg.QueryBuilder
+  Direction rootpkg.OrderDirection
 }
 
 // {{ $modelNamePrivate }}ColumnsStruct defines strongly typed columns for the
@@ -62,19 +62,19 @@ func (s {{ $modelNamePrivate }}ColumnsStruct) As(
   return {{ $modelNamePrivate }}ColumnsStruct{
   {{- range .Fields }}
     {{ .Name }}: {{ .String }}{
-      baseColumn(alias + ".{{ .ColumnName }}"),
+      rootpkg.BaseColumn(alias + ".{{ .ColumnName }}"),
       {{- if .Category.SupportOperatorEquality }}
-        comparableColumn[{{ .GoBaseType }}](
+        rootpkg.ComparableColumn[{{ .GoBaseType }}](
           alias + ".{{ .ColumnName }}",
         ),
       {{- end }}
       {{- if .Category.SupportOperatorMembership }}
-        arrayableColumn[{{ .GoBaseType }}](
+        rootpkg.ArrayableColumn[{{ .GoBaseType }}](
           alias + ".{{ .ColumnName }}",
         ),
       {{- end }}
       {{- if .Category.SupportOperatorRelational }}
-        orderableColumn[{{ .GoBaseType }}](
+        rootpkg.OrderableColumn[{{ .GoBaseType }}](
           alias + ".{{ .ColumnName }}",
         ),
       {{- end }}
@@ -88,15 +88,15 @@ func (s {{ $modelNamePrivate }}ColumnsStruct) As(
 var {{ $modelNameExported }}Columns = {{ $modelNamePrivate }}ColumnsStruct{
   {{- range .Fields }}
     {{ .Name }}: {{ .String }}{
-      baseColumn("{{ .ColumnName }}"),
+      rootpkg.BaseColumn("{{ .ColumnName }}"),
       {{- if .Category.SupportOperatorEquality }}
-        comparableColumn[{{ .GoBaseType }}]("{{ .ColumnName }}"),
+        rootpkg.ComparableColumn[{{ .GoBaseType }}]("{{ .ColumnName }}"),
       {{- end }}
       {{- if .Category.SupportOperatorMembership }}
-        arrayableColumn[{{ .GoBaseType }}]("{{ .ColumnName }}"),
+        rootpkg.ArrayableColumn[{{ .GoBaseType }}]("{{ .ColumnName }}"),
       {{- end }}
       {{- if .Category.SupportOperatorRelational }}
-        orderableColumn[{{ .GoBaseType }}]("{{ .ColumnName }}"),
+        rootpkg.OrderableColumn[{{ .GoBaseType }}]("{{ .ColumnName }}"),
       {{- end }}
     },
   {{- end }}
@@ -107,7 +107,7 @@ var {{ $modelNameExported }}Columns = {{ $modelNamePrivate }}ColumnsStruct{
 // New{{ $modelNameExported }}Query constructs a new
 // {{ $modelNameExported }}Query scoped to the provided database connection.
 func New{{ $modelNameExported }}Query(
-  db DBQuerier,
+  db rootpkg.DBQuerier,
 ) *{{ $modelNameExported }}Query {
   if db == nil {
     panic("database connection cannot be nil")
@@ -119,10 +119,10 @@ func New{{ $modelNameExported }}Query(
 
 // Select specifies the exact columns to retrieve from the database.
 func (q *{{ $modelNameExported }}Query) Select(
-  cols ...Column,
+  cols ...rootpkg.Column,
 ) *{{ $modelNameExported }}Query {
   clone := *q
-  clone.selects = make([]Column, len(q.selects), len(q.selects)+len(cols))
+  clone.selects = make([]rootpkg.Column, len(q.selects), len(q.selects)+len(cols))
   copy(clone.selects, q.selects)
   clone.selects = append(clone.selects, cols...)
   return &clone
@@ -130,10 +130,10 @@ func (q *{{ $modelNameExported }}Query) Select(
 
 // Returning specifies the exact columns to return after a mutation operation.
 func (q *{{ $modelNameExported }}Query) Returning(
-  cols ...Column,
+  cols ...rootpkg.Column,
 ) *{{ $modelNameExported }}Query {
   clone := *q
-  clone.returning = make([]Column, len(q.returning), len(q.returning)+len(cols))
+  clone.returning = make([]rootpkg.Column, len(q.returning), len(q.returning)+len(cols))
   copy(clone.returning, q.returning)
   clone.returning = append(clone.returning, cols...)
   return &clone
@@ -141,21 +141,29 @@ func (q *{{ $modelNameExported }}Query) Returning(
 
 // Where adds one or more conditional constraints to the query.
 func (q *{{ $modelNameExported }}Query) Where(
-  conds ...WhereCondition,
+  conds ...rootpkg.WhereCondition,
 ) *{{ $modelNameExported }}Query {
   clone := *q
-  clone.wheres = make([]WhereCondition, len(q.wheres), len(q.wheres)+len(conds))
+  clone.wheres = make([]rootpkg.WhereCondition, len(q.wheres), len(q.wheres)+len(conds))
   copy(clone.wheres, q.wheres)
   clone.wheres = append(clone.wheres, conds...)
   return &clone
 }
 
+// OptimisticLocking provides a semantic alias for Where(), specifically intended
+// to assert row version or timestamp constraints during an update.
+func (q *{{ $modelNameExported }}Query) OptimisticLocking(
+  conds ...rootpkg.WhereCondition,
+) *{{ $modelNameExported }}Query {
+  return q.Where(conds...)
+}
+
 // GroupBy applies a grouping constraint to the query.
 func (q *{{ $modelNameExported }}Query) GroupBy(
-  cols ...Column,
+  cols ...rootpkg.Column,
 ) *{{ $modelNameExported }}Query {
   clone := *q
-  clone.groupBys = make([]Column, len(q.groupBys), len(q.groupBys)+len(cols))
+  clone.groupBys = make([]rootpkg.Column, len(q.groupBys), len(q.groupBys)+len(cols))
   copy(clone.groupBys, q.groupBys)
   clone.groupBys = append(clone.groupBys, cols...)
   return &clone
@@ -163,11 +171,11 @@ func (q *{{ $modelNameExported }}Query) GroupBy(
 
 // Having adds one or more conditional constraints to the GROUP BY clause.
 func (q *{{ $modelNameExported }}Query) Having(
-  conds ...WhereCondition,
+  conds ...rootpkg.WhereCondition,
 ) *{{ $modelNameExported }}Query {
   clone := *q
   clone.havings = make(
-    []WhereCondition, len(q.havings), len(q.havings)+len(conds),
+    []rootpkg.WhereCondition, len(q.havings), len(q.havings)+len(conds),
   )
   copy(clone.havings, q.havings)
   clone.havings = append(clone.havings, conds...)
@@ -176,7 +184,7 @@ func (q *{{ $modelNameExported }}Query) Having(
 
 // OrderBy applies a sorting constraint to the query.
 func (q *{{ $modelNameExported }}Query) OrderBy(
-  col Column, dir OrderDirection,
+  col rootpkg.Column, dir rootpkg.OrderDirection,
 ) *{{ $modelNameExported }}Query {
   clone := *q
   clone.orderBys = make(
@@ -191,7 +199,7 @@ func (q *{{ $modelNameExported }}Query) OrderBy(
 
 // OrderByQuery applies a sorting constraint using a sub-query.
 func (q *{{ $modelNameExported }}Query) OrderByQuery(
-  query QueryBuilder, dir OrderDirection,
+  query rootpkg.QueryBuilder, dir rootpkg.OrderDirection,
 ) *{{ $modelNameExported }}Query {
   clone := *q
   clone.orderBys = make(

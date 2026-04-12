@@ -6,7 +6,7 @@
 // {{ $modelName }} record.
 func (q *{{ $modelName }}Query) Upsert(
   ctx context.Context,
-  conflictCols []Column,
+  conflictCols []rootpkg.Column,
   opts ...{{ $modelName }}CreateOption,
 ) (*{{ $modelName }}, error) {
   res, err := q.UpsertMany(ctx, conflictCols, opts)
@@ -23,7 +23,7 @@ func (q *{{ $modelName }}Query) Upsert(
 // {{ $modelName }} records in a single batch operation.
 func (q *{{ $modelName }}Query) UpsertMany(
   ctx context.Context,
-  conflictCols []Column,
+  conflictCols []rootpkg.Column,
   items ...[]{{ $modelName }}CreateOption,
 ) ([]*{{ $modelName }}, error) {
   if len(items) == 0 {
@@ -34,12 +34,12 @@ func (q *{{ $modelName }}Query) UpsertMany(
   }
 
   // Evaluate the functional options into maps of column -> value
-  rowsData := make([]map[Column]any, 0, len(items))
-  var activeCols []Column
-  colSet := make(map[Column]struct{})
+  rowsData := make([]map[rootpkg.Column]any, 0, len(items))
+  var activeCols []rootpkg.Column
+  colSet := make(map[rootpkg.Column]struct{})
 
   for _, rowOpts := range items {
-    m := make(map[Column]any)
+    m := make(map[rootpkg.Column]any)
     for _, opt := range rowOpts {
       opt(m)
     }

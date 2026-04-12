@@ -75,7 +75,7 @@ func (f *FieldGo) String() string {
 	if strings.HasPrefix(nameStr, string(ColTypeComposite)) {
 		return nameStr
 	}
-	return nameStr + "[" + typeStr + "]"
+	return "rootpkg." + nameStr + "[" + typeStr + "]"
 }
 
 // GoType returns the GoBaseType prefixed with a pointer (*) if IsPtr is true.

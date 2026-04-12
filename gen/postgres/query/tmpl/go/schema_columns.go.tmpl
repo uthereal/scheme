@@ -1,0 +1,47 @@
+{{- range .Composites }}
+  {{- $compName := .Name }}
+
+  // {{ $compName }}Column represents a strongly typed PostgreSQL composite
+  // column.
+  type Composite{{ $compName }}Column struct {
+    rootpkg.BaseColumn
+    rootpkg.ComparableColumn[{{ $compName }}]
+  }
+
+  func (c Composite{{ $compName }}Column) String() string {
+    return c.BaseColumn.String()
+  }
+
+  {{- range .Fields }}
+    // {{ .Name }} returns a strongly typed column representing the
+    // {{ .ColumnName }} field.
+    func (c Composite{{ $compName }}Column) {{ .Name }}() {{ .String }} {
+      col := "(" + c.BaseColumn.String() + ").{{ .ColumnName }}"
+      return {{ .String }}{
+        rootpkg.BaseColumn(col),
+        {{- if .Category.SupportOperatorEquality }}
+          rootpkg.ComparableColumn[{{ .GoBaseType }}](col),
+        {{- end }}
+        {{- if .Category.SupportOperatorMembership }}
+          rootpkg.ArrayableColumn[{{ .GoBaseType }}](col),
+        {{- end }}
+        {{- if .Category.SupportOperatorRelational }}
+          rootpkg.OrderableColumn[{{ .GoBaseType }}](col),
+        {{- end }}
+      }
+    }
+  {{- end }}
+
+  // Field returns a DynamicColumn representing a nested field within the
+  // composite type. It allows for querying against specific struct properties
+  // using PostgreSQL's (column).field syntax.
+  func (c Composite{{ $compName }}Column) Field(name string) rootpkg.DynamicColumn {
+    fieldSql := "(" + c.BaseColumn.String() + ")." + name
+    return rootpkg.DynamicColumn{
+      BaseColumn:       rootpkg.BaseColumn(fieldSql),
+      ComparableColumn: rootpkg.ComparableColumn[any](fieldSql),
+      ArrayableColumn:  rootpkg.ArrayableColumn[any](fieldSql),
+      OrderableColumn:  rootpkg.OrderableColumn[any](fieldSql),
+    }
+  }
+{{- end }}

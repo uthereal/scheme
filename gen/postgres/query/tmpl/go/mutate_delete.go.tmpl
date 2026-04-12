@@ -20,7 +20,7 @@ func (q *{{ $modelName }}Query) Delete(
 
   if len(q.wheres) > 0 {
     query.WriteString(" WHERE ")
-    whereSQL, whereArgs, err := buildConditions(q.wheres, &paramIdx)
+    whereSQL, whereArgs, err := rootpkg.BuildConditions(q.wheres, &paramIdx)
     if err != nil {
       return 0, err
     }

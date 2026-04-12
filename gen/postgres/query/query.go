@@ -12,8 +12,9 @@ import (
 )
 
 type queryTemplateData struct {
-	PkgName    string
-	GoPkgPath  string
+	PkgName     string
+	GoPkgPath   string
+	RootPkgPath string
 	Imports    []string
 	Models     []*ast.ModelGo
 	Composites []*ast.CompositeGo
@@ -27,6 +28,59 @@ var tmpls = map[string]*template.Template{
 	gen.LangGo.Name: template.Must(
 		template.New("go").ParseFS(goTmplFS, "tmpl/go/*.go.tmpl"),
 	),
+}
+
+
+func GenerateRoot(
+	lang gen.Language,
+	pkgName string,
+) (string, error) {
+	switch lang.Name {
+	case gen.LangGo.Name:
+		return generateRootGo(lang, pkgName)
+	default:
+		return "", fmt.Errorf("unsupported language -> %s", lang.Name)
+	}
+}
+
+func generateRootGo(
+	lang gen.Language,
+	pkgName string,
+) (string, error) {
+	tmpl, ok := tmpls[lang.Name]
+	if !ok {
+		return "", fmt.Errorf(
+			"no template mapped for language -> %s", lang.Name,
+		)
+	}
+
+	active := map[string]bool{
+		"StringColumn":         true,
+		"NumberColumn":         true,
+		"BooleanColumn":        true,
+		"TimeColumn":           true,
+		"ByteColumn":           true,
+		"EnumColumn":           true,
+		"UUIDColumn":           true,
+		"JSONColumn":           true,
+		"ArrayColumn":          true,
+		"GeometricColumn":      true,
+		"NetworkAddressColumn": true,
+		"BitStringColumn":      true,
+		"RangeColumn":          true,
+	}
+
+	tmplData := queryTemplateData{
+		PkgName: pkgName,
+		Active:  active,
+	}
+
+	rootTmpl := tmpl.Lookup("root_main.go.tmpl")
+	if rootTmpl == nil {
+		panic("no template mapped for language -> root_main.go.tmpl")
+	}
+
+	return gen.RenderSource(lang, rootTmpl, tmplData)
 }
 
 // GenerateQueryBuilders returns the generated code for the query builders
@@ -71,8 +125,9 @@ func generateQueryBuildersGo(
 	}
 
 	tmplData := queryTemplateData{
-		PkgName:    goGraph.GoPkgName,
-		GoPkgPath:  goGraph.GoPkgPath,
+		PkgName:     goGraph.GoPkgName,
+		GoPkgPath:   goGraph.GoPkgPath,
+		RootPkgPath: lang.Options.GoPackagePath,
 		Imports:    goGraph.ImportList(),
 		Models:     goGraph.Models,
 		Composites: goGraph.Composites,

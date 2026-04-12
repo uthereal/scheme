@@ -14,7 +14,7 @@ func Or(conds ...WhereCondition) WhereCondition {
   return WhereCondition{Group: conds, IsOr: true}
 }
 
-func buildConditions(
+func BuildConditions(
   conds []WhereCondition, paramIdx *int,
 ) (string, []any, error) {
   if len(conds) == 0 {
@@ -35,7 +35,7 @@ func buildConditions(
 
     if len(cond.Group) > 0 {
       query.WriteString("(")
-      gSQL, gArgs, err := buildConditions(cond.Group, paramIdx)
+      gSQL, gArgs, err := BuildConditions(cond.Group, paramIdx)
       if err != nil {
         return "", nil, err
       }

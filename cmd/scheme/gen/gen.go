@@ -135,6 +135,20 @@ func Run(ctx context.Context, logger *slog.Logger, args []string) int {
 		return 1
 	}
 
+	for _, lang := range langs {
+		if lang.Name == gen.LangGo.Name {
+			err = generateRootGo(ctx, logger, lang, *outDir)
+			if err != nil {
+				logger.ErrorContext(
+					ctx,
+					"Failed to generate the root code.",
+					slog.Any("error", err),
+				)
+				return 1
+			}
+		}
+	}
+
 	for _, dbDef := range scheme.GetDatabases() {
 		switch dbDef.Engine.(type) {
 		case *core.Database_Postgres:
@@ -157,6 +171,50 @@ func Run(ctx context.Context, logger *slog.Logger, args []string) int {
 	}
 
 	return 0
+}
+
+func generateRootGo(
+	ctx context.Context,
+	logger *slog.Logger,
+	lang gen.Language,
+	outDir string,
+) error {
+	if logger == nil {
+		panic("logger cannot be nil")
+	}
+
+	pkgName := filepath.Base(outDir)
+	if pkgName == "." || pkgName == "/" || pkgName == "" {
+		pkgName = "scheme" // fallback
+	}
+	pkgName = strings.ReplaceAll(pkgName, "-", "_")
+	if pkgName[0] >= '0' && pkgName[0] <= '9' {
+		pkgName = "scheme"
+	}
+
+	content, err := query.GenerateRoot(lang, pkgName)
+	if err != nil {
+		return fmt.Errorf("failed to generate root package -> %w", err)
+	}
+
+	err = os.MkdirAll(outDir, 0755)
+	if err != nil {
+		return fmt.Errorf("failed to create root output directory %q -> %w", outDir, err)
+	}
+
+	filePath := filepath.Join(outDir, "scheme_types." + lang.Extension)
+	err = os.WriteFile(filePath, []byte(content), 0644)
+	if err != nil {
+		return fmt.Errorf("failed to write root output file %q -> %w", filePath, err)
+	}
+	
+	logger.InfoContext(
+		ctx,
+		"Generated root output file.",
+		slog.String("path", filePath),
+	)
+
+	return nil
 }
 
 func generatePostgres(

@@ -78,6 +78,8 @@ func NewSchemaGraphGo(
 		ActiveCategories: make(map[string]bool),
 	}
 
+
+
 	// Pass 1: Shell Object Stubbing.
 	// Pre-build a map for model resolution by PascalCase name to avoid
 	// O(M^2) latency when processing edges later.

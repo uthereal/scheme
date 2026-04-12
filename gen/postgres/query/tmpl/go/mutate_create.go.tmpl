@@ -4,7 +4,7 @@
 
 // {{ $modelName }}CreateOption defines a strongly-typed functional argument for
 // inserting a {{ $modelName }} record.
-type {{ $modelName }}CreateOption func(map[Column]any)
+type {{ $modelName }}CreateOption func(map[rootpkg.Column]any)
 
 // {{ $modelName }}Create provides strongly-typed setter functions for
 // inserting a {{ $modelName }} record.
@@ -18,13 +18,13 @@ var {{ $modelName }}Create = struct {
 }{
   {{- range .Fields }}
     {{ .Name }}: func(v {{ .GoType }}) {{ $modelName }}CreateOption {
-      return func(m map[Column]any) {
+      return func(m map[rootpkg.Column]any) {
         m[{{ $modelName }}Columns.{{ .Name }}] = v
       }
     },
     {{- if not (eq .GoType "bool") }}
     {{ .Name }}Null: func() {{ $modelName }}CreateOption {
-      return func(m map[Column]any) {
+      return func(m map[rootpkg.Column]any) {
         m[{{ $modelName }}Columns.{{ .Name }}] = nil
       }
     },
@@ -63,12 +63,12 @@ func (q *{{ $modelName }}Query) CreateMany(
   }
 
   // Evaluate the functional options into maps of column -> value
-  rowsData := make([]map[Column]any, 0, len(items))
-  var activeCols []Column
-  colSet := make(map[Column]struct{})
+  rowsData := make([]map[rootpkg.Column]any, 0, len(items))
+  var activeCols []rootpkg.Column
+  colSet := make(map[rootpkg.Column]struct{})
 
   for _, rowOpts := range items {
-    m := make(map[Column]any)
+    m := make(map[rootpkg.Column]any)
     for _, opt := range rowOpts {
       opt(m)
     }

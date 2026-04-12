@@ -31,31 +31,31 @@ type NetworkAddressType interface {
 }
 {{- end }}
 
-// baseColumn is the underlying root type that provides the shared methods
+// BaseColumn is the underlying root type that provides the shared methods
 // for all strongly typed column representations.
-type baseColumn string
+type BaseColumn string
 
-// comparableColumn provides basic equality checks for columns.
-type comparableColumn[T any] string
+// ComparableColumn provides basic equality checks for columns.
+type ComparableColumn[T any] string
 
 // String returns the column name as a string.
-func (c comparableColumn[T]) String() string {
+func (c ComparableColumn[T]) String() string {
   return string(c)
 }
 
-// arrayableColumn provides array inclusion constraints like IN and NOT IN.
-type arrayableColumn[T any] string
+// ArrayableColumn provides array inclusion constraints like IN and NOT IN.
+type ArrayableColumn[T any] string
 
 // String returns the column name as a string.
-func (c arrayableColumn[T]) String() string {
+func (c ArrayableColumn[T]) String() string {
   return string(c)
 }
 
-// orderableColumn provides mathematical inequality constraints.
-type orderableColumn[T any] string
+// OrderableColumn provides mathematical inequality constraints.
+type OrderableColumn[T any] string
 
 // String returns the column name as a string.
-func (c orderableColumn[T]) String() string {
+func (c OrderableColumn[T]) String() string {
   return string(c)
 }
 
@@ -63,14 +63,14 @@ func (c orderableColumn[T]) String() string {
 // StringColumn represents a strongly typed PostgreSQL string/character column.
 // Supported mappings: varchar, char, text, tsvector, tsquery, xml.
 type StringColumn[T ~string] struct {
-  baseColumn
-  comparableColumn[T]
-  arrayableColumn[T]
-  orderableColumn[T]
+  BaseColumn
+  ComparableColumn[T]
+  ArrayableColumn[T]
+  OrderableColumn[T]
 }
 
 func (c StringColumn[T]) String() string {
-  return c.baseColumn.String()
+  return c.BaseColumn.String()
 }
 {{- end }}
 
@@ -79,14 +79,14 @@ func (c StringColumn[T]) String() string {
 // Supported mappings: smallint, integer, bigint, decimal, numeric, real,
 // double precision, smallserial, serial, bigserial, money, oid, pg_lsn.
 type NumberColumn[T Numeric] struct {
-  baseColumn
-  comparableColumn[T]
-  arrayableColumn[T]
-  orderableColumn[T]
+  BaseColumn
+  ComparableColumn[T]
+  ArrayableColumn[T]
+  OrderableColumn[T]
 }
 
 func (c NumberColumn[T]) String() string {
-  return c.baseColumn.String()
+  return c.BaseColumn.String()
 }
 {{- end }}
 
@@ -94,13 +94,13 @@ func (c NumberColumn[T]) String() string {
 // BooleanColumn represents a strongly typed PostgreSQL boolean column.
 // Supported mappings: boolean.
 type BooleanColumn[T ~bool] struct {
-  baseColumn
-  comparableColumn[T]
-  arrayableColumn[T]
+  BaseColumn
+  ComparableColumn[T]
+  ArrayableColumn[T]
 }
 
 func (c BooleanColumn[T]) String() string {
-  return c.baseColumn.String()
+  return c.BaseColumn.String()
 }
 {{- end }}
 
@@ -108,14 +108,14 @@ func (c BooleanColumn[T]) String() string {
 // TimeColumn represents a strongly typed PostgreSQL date/time column.
 // Supported mappings: timestamp, timestamptz, date, time, timetz, interval.
 type TimeColumn[T TimeType] struct {
-  baseColumn
-  comparableColumn[T]
-  arrayableColumn[T]
-  orderableColumn[T]
+  BaseColumn
+  ComparableColumn[T]
+  ArrayableColumn[T]
+  OrderableColumn[T]
 }
 
 func (c TimeColumn[T]) String() string {
-  return c.baseColumn.String()
+  return c.BaseColumn.String()
 }
 {{- end }}
 
@@ -123,13 +123,13 @@ func (c TimeColumn[T]) String() string {
 // ByteColumn represents a strongly typed PostgreSQL binary data column.
 // Supported mappings: bytea.
 type ByteColumn[T []byte] struct {
-  baseColumn
-  comparableColumn[T]
-  arrayableColumn[T]
+  BaseColumn
+  ComparableColumn[T]
+  ArrayableColumn[T]
 }
 
 func (c ByteColumn[T]) String() string {
-  return c.baseColumn.String()
+  return c.BaseColumn.String()
 }
 {{- end }}
 
@@ -137,13 +137,13 @@ func (c ByteColumn[T]) String() string {
 // EnumColumn represents a strongly typed PostgreSQL enumerated type column.
 // Supported mappings: ENUM.
 type EnumColumn[T ~string] struct {
-  baseColumn
-  comparableColumn[T]
-  arrayableColumn[T]
+  BaseColumn
+  ComparableColumn[T]
+  ArrayableColumn[T]
 }
 
 func (c EnumColumn[T]) String() string {
-  return c.baseColumn.String()
+  return c.BaseColumn.String()
 }
 {{- end }}
 
@@ -151,13 +151,13 @@ func (c EnumColumn[T]) String() string {
 // UUIDColumn represents a strongly typed PostgreSQL UUID column.
 // Supported mappings: uuid.
 type UUIDColumn[T uuid.UUID] struct {
-  baseColumn
-  comparableColumn[T]
-  arrayableColumn[T]
+  BaseColumn
+  ComparableColumn[T]
+  ArrayableColumn[T]
 }
 
 func (c UUIDColumn[T]) String() string {
-  return c.baseColumn.String()
+  return c.BaseColumn.String()
 }
 {{- end }}
 
@@ -165,12 +165,12 @@ func (c UUIDColumn[T]) String() string {
 // JSONColumn represents a strongly typed PostgreSQL JSON column.
 // Supported mappings: json, jsonb, jsonpath.
 type JSONColumn[T JSONType] struct {
-  baseColumn
-  comparableColumn[T]
+  BaseColumn
+  ComparableColumn[T]
 }
 
 func (c JSONColumn[T]) String() string {
-  return c.baseColumn.String()
+  return c.BaseColumn.String()
 }
 {{- end }}
 
@@ -178,13 +178,13 @@ func (c JSONColumn[T]) String() string {
 // ArrayColumn represents a strongly typed PostgreSQL array column.
 // Supported mappings: any PostgreSQL array type (e.g. integer[]).
 type ArrayColumn[T any] struct {
-  baseColumn
-  comparableColumn[T]
-  arrayableColumn[T]
+  BaseColumn
+  ComparableColumn[T]
+  ArrayableColumn[T]
 }
 
 func (c ArrayColumn[T]) String() string {
-  return c.baseColumn.String()
+  return c.BaseColumn.String()
 }
 {{- end }}
 
@@ -192,12 +192,12 @@ func (c ArrayColumn[T]) String() string {
 // GeometricColumn represents a strongly typed PostgreSQL geometric column.
 // Supported mappings: point, line, lseg, box, path, polygon, circle.
 type GeometricColumn[T GeometricType] struct {
-  baseColumn
-  comparableColumn[T]
+  BaseColumn
+  ComparableColumn[T]
 }
 
 func (c GeometricColumn[T]) String() string {
-  return c.baseColumn.String()
+  return c.BaseColumn.String()
 }
 {{- end }}
 
@@ -206,13 +206,13 @@ func (c GeometricColumn[T]) String() string {
 // column.
 // Supported mappings: inet, cidr, macaddr, macaddr8.
 type NetworkAddressColumn[T NetworkAddressType] struct {
-  baseColumn
-  comparableColumn[T]
-  arrayableColumn[T]
+  BaseColumn
+  ComparableColumn[T]
+  ArrayableColumn[T]
 }
 
 func (c NetworkAddressColumn[T]) String() string {
-  return c.baseColumn.String()
+  return c.BaseColumn.String()
 }
 {{- end }}
 
@@ -220,12 +220,12 @@ func (c NetworkAddressColumn[T]) String() string {
 // BitStringColumn represents a strongly typed PostgreSQL bit string column.
 // Supported mappings: bit, bit varying.
 type BitStringColumn[T pgtype.Bits] struct {
-  baseColumn
-  comparableColumn[T]
+  BaseColumn
+  ComparableColumn[T]
 }
 
 func (c BitStringColumn[T]) String() string {
-  return c.baseColumn.String()
+  return c.BaseColumn.String()
 }
 {{- end }}
 
@@ -234,13 +234,13 @@ func (c BitStringColumn[T]) String() string {
 // Supported mappings: int4range, int8range, numrange, tsrange, tstzrange,
 // daterange, and custom range types.
 type RangeColumn[T any] struct {
-  baseColumn
-  comparableColumn[T]
-  arrayableColumn[T]
+  BaseColumn
+  ComparableColumn[T]
+  ArrayableColumn[T]
 }
 
 func (c RangeColumn[T]) String() string {
-  return c.baseColumn.String()
+  return c.BaseColumn.String()
 }
 {{- end }}
 
@@ -248,89 +248,41 @@ func (c RangeColumn[T]) String() string {
 // This is primarily used as a fallback for nested fields within composite
 // types where strict generic typing cannot be determined at compile time.
 type DynamicColumn struct {
-  baseColumn
-  comparableColumn[any]
-  arrayableColumn[any]
-  orderableColumn[any]
+  BaseColumn
+  ComparableColumn[any]
+  ArrayableColumn[any]
+  OrderableColumn[any]
 }
 
 // String resolves the ambiguous selector for the embedded String methods.
 func (c DynamicColumn) String() string {
-  return c.baseColumn.String()
+  return c.BaseColumn.String()
 }
-
-{{- range .Composites }}
-  {{- $compName := .Name }}
-
-  // {{ $compName }}Column represents a strongly typed PostgreSQL composite
-  // column.
-  type {{ $compName }}Column struct {
-    baseColumn
-    comparableColumn[{{ $compName }}]
-  }
-
-  func (c {{ $compName }}Column) String() string {
-    return c.baseColumn.String()
-  }
-
-  {{- range .Fields }}
-    // {{ .Name }} returns a strongly typed column representing the
-    // {{ .ColumnName }} field.
-    func (c {{ $compName }}Column) {{ .Name }}() {{ .String }} {
-      col := "(" + c.baseColumn.String() + ").{{ .ColumnName }}"
-      return {{ .String }}{
-        baseColumn(col),
-        {{- if .Category.SupportOperatorEquality }}
-          comparableColumn[{{ .GoBaseType }}](col),
-        {{- end }}
-        {{- if .Category.SupportOperatorMembership }}
-          arrayableColumn[{{ .GoBaseType }}](col),
-        {{- end }}
-        {{- if .Category.SupportOperatorRelational }}
-          orderableColumn[{{ .GoBaseType }}](col),
-        {{- end }}
-      }
-    }
-  {{- end }}
-
-  // Field returns a DynamicColumn representing a nested field within the
-  // composite type. It allows for querying against specific struct properties
-  // using PostgreSQL's (column).field syntax.
-  func (c {{ $compName }}Column) Field(name string) DynamicColumn {
-    fieldSql := "(" + c.baseColumn.String() + ")." + name
-    return DynamicColumn{
-      baseColumn:       baseColumn(fieldSql),
-      comparableColumn: comparableColumn[any](fieldSql),
-      arrayableColumn:  arrayableColumn[any](fieldSql),
-      orderableColumn:  orderableColumn[any](fieldSql),
-    }
-  }
-{{- end }}
 
 // DomainColumn represents a strongly typed PostgreSQL domain column.
 // Supported mappings: domain types.
 type DomainColumn[T any] struct {
-  baseColumn
-  comparableColumn[T]
+  BaseColumn
+  ComparableColumn[T]
 }
 
 func (c DomainColumn[T]) String() string {
-  return c.baseColumn.String()
+  return c.BaseColumn.String()
 }
 
 // String returns the column name as a string.
-func (c baseColumn) String() string {
+func (c BaseColumn) String() string {
   return string(c)
 }
 
 // As returns a dynamic column aliased with 'AS name'.
-func (c baseColumn) As(alias string) DynamicColumn {
+func (c BaseColumn) As(alias string) DynamicColumn {
   sql := c.String() + " AS " + alias
   return DynamicColumn{
-    baseColumn:       baseColumn(sql),
-    comparableColumn: comparableColumn[any](sql),
-    arrayableColumn:  arrayableColumn[any](sql),
-    orderableColumn:  orderableColumn[any](sql),
+    BaseColumn:       BaseColumn(sql),
+    ComparableColumn: ComparableColumn[any](sql),
+    ArrayableColumn:  ArrayableColumn[any](sql),
+    OrderableColumn:  OrderableColumn[any](sql),
   }
 }
 
@@ -338,10 +290,10 @@ func (c baseColumn) As(alias string) DynamicColumn {
 func Count(c Column) DynamicColumn {
   sql := "COUNT(" + c.String() + ")"
   return DynamicColumn{
-    baseColumn:       baseColumn(sql),
-    comparableColumn: comparableColumn[any](sql),
-    arrayableColumn:  arrayableColumn[any](sql),
-    orderableColumn:  orderableColumn[any](sql),
+    BaseColumn:       BaseColumn(sql),
+    ComparableColumn: ComparableColumn[any](sql),
+    ArrayableColumn:  ArrayableColumn[any](sql),
+    OrderableColumn:  OrderableColumn[any](sql),
   }
 }
 
@@ -349,10 +301,10 @@ func Count(c Column) DynamicColumn {
 func Sum(c Column) DynamicColumn {
   sql := "SUM(" + c.String() + ")"
   return DynamicColumn{
-    baseColumn:       baseColumn(sql),
-    comparableColumn: comparableColumn[any](sql),
-    arrayableColumn:  arrayableColumn[any](sql),
-    orderableColumn:  orderableColumn[any](sql),
+    BaseColumn:       BaseColumn(sql),
+    ComparableColumn: ComparableColumn[any](sql),
+    ArrayableColumn:  ArrayableColumn[any](sql),
+    OrderableColumn:  OrderableColumn[any](sql),
   }
 }
 
@@ -360,10 +312,10 @@ func Sum(c Column) DynamicColumn {
 func Min(c Column) DynamicColumn {
   sql := "MIN(" + c.String() + ")"
   return DynamicColumn{
-    baseColumn:       baseColumn(sql),
-    comparableColumn: comparableColumn[any](sql),
-    arrayableColumn:  arrayableColumn[any](sql),
-    orderableColumn:  orderableColumn[any](sql),
+    BaseColumn:       BaseColumn(sql),
+    ComparableColumn: ComparableColumn[any](sql),
+    ArrayableColumn:  ArrayableColumn[any](sql),
+    OrderableColumn:  OrderableColumn[any](sql),
   }
 }
 
@@ -371,10 +323,10 @@ func Min(c Column) DynamicColumn {
 func Max(c Column) DynamicColumn {
   sql := "MAX(" + c.String() + ")"
   return DynamicColumn{
-    baseColumn:       baseColumn(sql),
-    comparableColumn: comparableColumn[any](sql),
-    arrayableColumn:  arrayableColumn[any](sql),
-    orderableColumn:  orderableColumn[any](sql),
+    BaseColumn:       BaseColumn(sql),
+    ComparableColumn: ComparableColumn[any](sql),
+    ArrayableColumn:  ArrayableColumn[any](sql),
+    OrderableColumn:  OrderableColumn[any](sql),
   }
 }
 
@@ -382,45 +334,63 @@ func Max(c Column) DynamicColumn {
 func Avg(c Column) DynamicColumn {
   sql := "AVG(" + c.String() + ")"
   return DynamicColumn{
-    baseColumn:       baseColumn(sql),
-    comparableColumn: comparableColumn[any](sql),
-    arrayableColumn:  arrayableColumn[any](sql),
-    orderableColumn:  orderableColumn[any](sql),
+    BaseColumn:       BaseColumn(sql),
+    ComparableColumn: ComparableColumn[any](sql),
+    ArrayableColumn:  ArrayableColumn[any](sql),
+    OrderableColumn:  OrderableColumn[any](sql),
   }
 }
 
 // IsNull returns a WhereCondition for 'IS NULL'.
-func (c baseColumn) IsNull() WhereCondition {
+func (c BaseColumn) IsNull() WhereCondition {
   return WhereCondition{Sql: c.String() + " IS NULL"}
 }
 
 // IsNotNull returns a WhereCondition for 'IS NOT NULL'.
-func (c baseColumn) IsNotNull() WhereCondition {
+func (c BaseColumn) IsNotNull() WhereCondition {
   return WhereCondition{Sql: c.String() + " IS NOT NULL"}
 }
 
 // IsNil is an alias for IsNull.
-func (c baseColumn) IsNil() WhereCondition {
+func (c BaseColumn) IsNil() WhereCondition {
   return c.IsNull()
 }
 
 // NotNil is an alias for IsNotNull.
-func (c baseColumn) NotNil() WhereCondition {
+func (c BaseColumn) NotNil() WhereCondition {
   return c.IsNotNull()
 }
 
 // Eq returns a WhereCondition for '='.
-func (c comparableColumn[T]) Eq(val T) WhereCondition {
+func (c ComparableColumn[T]) Eq(val T) WhereCondition {
   return WhereCondition{Sql: c.String() + " = ?", Args: []any{val}}
 }
 
+// EqPtr returns a WhereCondition for '='. If the provided pointer is nil,
+// it falls back to returning an 'IS NULL' condition.
+func (c ComparableColumn[T]) EqPtr(val *T) WhereCondition {
+  if val == nil {
+    return WhereCondition{Sql: c.String() + " IS NULL"}
+  }
+  return WhereCondition{Sql: c.String() + " = ?", Args: []any{*val}}
+}
+
 // Neq returns a WhereCondition for '!='.
-func (c comparableColumn[T]) Neq(val T) WhereCondition {
+func (c ComparableColumn[T]) Neq(val T) WhereCondition {
   return WhereCondition{Sql: c.String() + " != ?", Args: []any{val}}
 }
 
+// NeqPtr returns a WhereCondition for '!='. If the provided pointer is nil,
+// it falls back to returning an 'IS NOT NULL' condition.
+func (c ComparableColumn[T]) NeqPtr(val *T) WhereCondition {
+  if val == nil {
+    return WhereCondition{Sql: c.String() + " IS NOT NULL"}
+  }
+  return WhereCondition{Sql: c.String() + " != ?", Args: []any{*val}}
+}
+
 // In returns a WhereCondition for '= ANY()'.
-func (c arrayableColumn[T]) In(vals ...T) WhereCondition {
+func (c ArrayableColumn[T]) In(vals ...T) WhereCondition {
   if len(vals) == 0 {
     return WhereCondition{Sql: "1=0"}
   }
@@ -428,7 +398,7 @@ func (c arrayableColumn[T]) In(vals ...T) WhereCondition {
 }
 
 // NotIn returns a WhereCondition for '!= ALL()'.
-func (c arrayableColumn[T]) NotIn(vals ...T) WhereCondition {
+func (c ArrayableColumn[T]) NotIn(vals ...T) WhereCondition {
   if len(vals) == 0 {
     return WhereCondition{Sql: "1=1"}
   }
@@ -436,32 +406,32 @@ func (c arrayableColumn[T]) NotIn(vals ...T) WhereCondition {
 }
 
 // InQuery returns a WhereCondition for 'IN' with a sub-query.
-func (c arrayableColumn[T]) InQuery(q QueryBuilder) WhereCondition {
+func (c ArrayableColumn[T]) InQuery(q QueryBuilder) WhereCondition {
   return WhereCondition{Sql: c.String() + " IN", Query: q}
 }
 
 // NotInQuery returns a WhereCondition for 'NOT IN' with a sub-query.
-func (c arrayableColumn[T]) NotInQuery(q QueryBuilder) WhereCondition {
+func (c ArrayableColumn[T]) NotInQuery(q QueryBuilder) WhereCondition {
   return WhereCondition{Sql: c.String() + " NOT IN", Query: q}
 }
 
 // Gt returns a WhereCondition for '>'.
-func (c orderableColumn[T]) Gt(val T) WhereCondition {
+func (c OrderableColumn[T]) Gt(val T) WhereCondition {
   return WhereCondition{Sql: c.String() + " > ?", Args: []any{val}}
 }
 
 // Gte returns a WhereCondition for '>='.
-func (c orderableColumn[T]) Gte(val T) WhereCondition {
+func (c OrderableColumn[T]) Gte(val T) WhereCondition {
   return WhereCondition{Sql: c.String() + " >= ?", Args: []any{val}}
 }
 
 // Lt returns a WhereCondition for '<'.
-func (c orderableColumn[T]) Lt(val T) WhereCondition {
+func (c OrderableColumn[T]) Lt(val T) WhereCondition {
   return WhereCondition{Sql: c.String() + " < ?", Args: []any{val}}
 }
 
 // Lte returns a WhereCondition for '<='.
-func (c orderableColumn[T]) Lte(val T) WhereCondition {
+func (c OrderableColumn[T]) Lte(val T) WhereCondition {
   return WhereCondition{Sql: c.String() + " <= ?", Args: []any{val}}
 }
 
@@ -880,15 +850,3 @@ func (c BitStringColumn[T]) Overlaps(val T) WhereCondition {
 }
 {{- end }}
 
-{{- range .Composites }}
-// Composite{{ .Name }}Column represents a strongly typed PostgreSQL composite
-// column.
-type Composite{{ .Name }}Column struct {
-  baseColumn
-  comparableColumn[{{ .Name }}]
-}
-
-func (c Composite{{ .Name }}Column) String() string {
-  return c.baseColumn.String()
-}
-{{- end }}

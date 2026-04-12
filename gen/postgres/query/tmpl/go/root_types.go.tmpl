@@ -26,6 +26,10 @@ type Column interface {
 type OrderDirection string
 
 const (
-  OrderAsc  OrderDirection = "ASC"
-  OrderDesc OrderDirection = "DESC"
+  OrderAsc            OrderDirection = "ASC"
+  OrderDesc           OrderDirection = "DESC"
+  OrderAscNullsFirst  OrderDirection = "ASC NULLS FIRST"
+  OrderAscNullsLast   OrderDirection = "ASC NULLS LAST"
+  OrderDescNullsFirst OrderDirection = "DESC NULLS FIRST"
+  OrderDescNullsLast  OrderDirection = "DESC NULLS LAST"
 )
