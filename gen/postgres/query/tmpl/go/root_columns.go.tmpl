@@ -154,6 +154,7 @@ type UUIDColumn[T uuid.UUID] struct {
   BaseColumn
   ComparableColumn[T]
   ArrayableColumn[T]
+  OrderableColumn[T]
 }
 
 func (c UUIDColumn[T]) String() string {

@@ -67,7 +67,8 @@ func (c ColumnCategory) SupportOperatorRelational() bool {
 	switch c.Name {
 	case ColTypeNumber,
 		ColTypeTime,
-		ColTypeString:
+		ColTypeString,
+		ColTypeUUID:
 		return true
 	default:
 		return false
