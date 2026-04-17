@@ -31,11 +31,18 @@ func (q *{{ $modelNameExported }}Query) As(
   return &clone
 }
 
-// {{ $modelNameExported }}Pagination holds a paginated result set of
+// {{ $modelNameExported }}CountPagination holds a paginated result set of
 // {{ $modelNameExported }} alongside the total count of available records.
-type {{ $modelNameExported }}Pagination struct {
+type {{ $modelNameExported }}CountPagination struct {
   Items      []*{{ $modelNameExported }}
   TotalCount int
+}
+
+// {{ $modelNameExported }}SimplePagination holds a paginated result set of
+// {{ $modelNameExported }} and a boolean indicating if more records exist.
+type {{ $modelNameExported }}SimplePagination struct {
+  Items   []*{{ $modelNameExported }}
+  HasMore bool
 }
 
 // {{ $modelNamePrivate }}OrderBy defines a single ORDER BY constraint for a

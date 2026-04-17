@@ -149,9 +149,9 @@ func (q *{{ $modelName }}Query) Exists(ctx context.Context) (bool, error) {
 }
 
 // Paginate limits the query to a specific page and calculates the total count.
-func (q *{{ $modelName }}Query) Paginate(
+func (q *{{ $modelName }}Query) PaginateWithCount(
   ctx context.Context, page int, pageSize int,
-) (*{{ $modelName }}Pagination, error) {
+) (*{{ $modelName }}CountPagination, error) {
   if page < 1 {
     page = 1
   }
@@ -210,9 +210,41 @@ func (q *{{ $modelName }}Query) Paginate(
     }
   }
 
-  return &{{ $modelName }}Pagination{
+  return &{{ $modelName }}CountPagination{
     Items:      results,
     TotalCount: totalCount,
+  }, nil
+}
+
+// PaginateSimple executes the query and returns a paginated result set without a total count.
+// Instead, it fetches one extra record to determine if there are more records available.
+func (q *{{ $modelName }}Query) PaginateSimple(
+  ctx context.Context, page int, pageSize int,
+) (*{{ $modelName }}SimplePagination, error) {
+  if page < 1 {
+    page = 1
+  }
+  if pageSize < 1 {
+    pageSize = 10
+  }
+  
+  limit := pageSize + 1
+  offset := (page - 1) * pageSize
+
+  items, err := q.Limit(limit).Offset(offset).Get(ctx)
+  if err != nil {
+    return nil, err
+  }
+
+  hasMore := false
+  if len(items) > pageSize {
+    hasMore = true
+    items = items[:pageSize]
+  }
+
+  return &{{ $modelName }}SimplePagination{
+    Items:   items,
+    HasMore: hasMore,
   }, nil
 }
 

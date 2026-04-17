@@ -120,9 +120,19 @@ func main() {
 		panic("exists check failed")
 	}
 
-	pagination, err := postgres.NewUserQuery(db).Paginate(ctx, 1, 10)
-	if err != nil || pagination.TotalCount != 2 {
-		panic("pagination failed")
+	countPagination, err := postgres.NewUserQuery(db).PaginateWithCount(ctx, 1, 1)
+	if err != nil || countPagination.TotalCount != 2 || len(countPagination.Items) != 1 {
+		panic("PaginateWithCount failed")
+	}
+
+	simplePagination, err := postgres.NewUserQuery(db).PaginateSimple(ctx, 1, 1)
+	if err != nil || !simplePagination.HasMore || len(simplePagination.Items) != 1 {
+		panic("PaginateSimple failed")
+	}
+
+	simplePaginationLast, err := postgres.NewUserQuery(db).PaginateSimple(ctx, 2, 1)
+	if err != nil || simplePaginationLast.HasMore || len(simplePaginationLast.Items) != 1 {
+		panic("PaginateSimple last page failed")
 	}
 
 	// Test: OrderByQuery using SubQuery
