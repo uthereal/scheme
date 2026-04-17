@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+package postgres;
+
+import "postgres/data_type.proto";
+
+// FunctionArgument represents an input parameter to a PostgreSQL function.
+message FunctionArgument {
+  string name = 1;
+  DataType type = 2;
+}
+
+// FunctionDefinition represents a PostgreSQL function or stored procedure.
+message FunctionDefinition {
+  string name = 1;
+  string name_previous = 2;
+  repeated FunctionArgument arguments = 3;
+  
+  // Optional return type. If omitted, implies 'void'.
+  // Can also be a SETOF or TABLE return type conceptually, but let's stick to DataType or a specific return message.
+  DataType return_type = 4;
+  
+  // e.g., "plpgsql", "sql". Defaults to "plpgsql" if omitted.
+  string language = 5;
+  
+  // The raw body of the function.
+  string body = 6;
+}

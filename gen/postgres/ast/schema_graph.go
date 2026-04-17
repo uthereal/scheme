@@ -22,6 +22,7 @@ func NewSchemaGraph(pgSchema *postgres.PostgresDatabase) (*SchemaGraph, error) {
 		Enums:      make(map[string]*Enum),
 		Composites: make(map[string]*Composite),
 		Domains:    make(map[string]*Domain),
+		Functions:  make(map[string]*Function),
 		Models:     make(map[string]*Model),
 	}
 
@@ -209,6 +210,25 @@ func (sg *SchemaGraph) buildModelGraph(
 			sg.Enums[key] = &Enum{
 				Name:   resEnumNames[key],
 				Values: vals,
+			}
+		}
+
+		for _, f := range schema.GetFunctions() {
+			key := fmt.Sprintf("%s.%s", schemaName, f.GetName())
+			args := make([]FunctionArgument, 0, len(f.GetArguments()))
+			for _, arg := range f.GetArguments() {
+				args = append(args, FunctionArgument{
+					Name: arg.GetName(),
+					Type: arg.GetType(),
+				})
+			}
+			sg.Functions[key] = &Function{
+				Name:         f.GetName(),
+				NamePrevious: f.GetNamePrevious(),
+				Arguments:    args,
+				ReturnType:   f.GetReturnType(),
+				Language:     f.GetLanguage(),
+				Body:         f.GetBody(),
 			}
 		}
 

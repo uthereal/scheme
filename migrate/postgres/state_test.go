@@ -1,14 +1,15 @@
 package postgres_test
 
 import (
-	"testing"
+  "testing"
 
-	"context"
-	"github.com/google/go-cmp/cmp"
-	"github.com/gotidy/ptr"
-	"github.com/uthereal/scheme/genproto/core/shared"
-	genpg "github.com/uthereal/scheme/genproto/postgres"
-	"github.com/uthereal/scheme/migrate/postgres"
+  "context"
+
+  "github.com/google/go-cmp/cmp"
+  "github.com/gotidy/ptr"
+  "github.com/uthereal/scheme/genproto/core/shared"
+  genpg "github.com/uthereal/scheme/genproto/postgres"
+  "github.com/uthereal/scheme/migrate/postgres"
 )
 
 func TestNewDatabaseStateFromProto(t *testing.T) {

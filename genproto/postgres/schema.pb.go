@@ -40,7 +40,9 @@ type PostgresSchema struct {
 	Composites []*CompositeDefinition `protobuf:"bytes,5,rep,name=composites,proto3" json:"composites,omitempty"`
 	// Schema-level domain type definitions. Domains are created at the schema level
 	// and can be referenced by columns within tables in this or other schemas.
-	Domains       []*DomainDefinition `protobuf:"bytes,6,rep,name=domains,proto3" json:"domains,omitempty"`
+	Domains []*DomainDefinition `protobuf:"bytes,6,rep,name=domains,proto3" json:"domains,omitempty"`
+	// Schema-level function definitions.
+	Functions     []*FunctionDefinition `protobuf:"bytes,7,rep,name=functions,proto3" json:"functions,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -117,11 +119,18 @@ func (x *PostgresSchema) GetDomains() []*DomainDefinition {
 	return nil
 }
 
+func (x *PostgresSchema) GetFunctions() []*FunctionDefinition {
+	if x != nil {
+		return x.Functions
+	}
+	return nil
+}
+
 var File_postgres_schema_proto protoreflect.FileDescriptor
 
 const file_postgres_schema_proto_rawDesc = "" +
 	"\n" +
-	"\x15postgres/schema.proto\x12\bpostgres\x1a\x14postgres/table.proto\x1a\x18postgres/data_type.proto\"\x97\x02\n" +
+	"\x15postgres/schema.proto\x12\bpostgres\x1a\x14postgres/table.proto\x1a\x18postgres/data_type.proto\x1a\x17postgres/function.proto\"\xd3\x02\n" +
 	"\x0ePostgresSchema\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12#\n" +
 	"\rname_previous\x18\x02 \x01(\tR\fnamePrevious\x12'\n" +
@@ -130,7 +139,8 @@ const file_postgres_schema_proto_rawDesc = "" +
 	"\n" +
 	"composites\x18\x05 \x03(\v2\x1d.postgres.CompositeDefinitionR\n" +
 	"composites\x124\n" +
-	"\adomains\x18\x06 \x03(\v2\x1a.postgres.DomainDefinitionR\adomainsB\x89\x01\n" +
+	"\adomains\x18\x06 \x03(\v2\x1a.postgres.DomainDefinitionR\adomains\x12:\n" +
+	"\tfunctions\x18\a \x03(\v2\x1c.postgres.FunctionDefinitionR\tfunctionsB\x89\x01\n" +
 	"\fcom.postgresB\vSchemaProtoP\x01Z,github.com/uthereal/scheme/genproto/postgres\xa2\x02\x03PXX\xaa\x02\bPostgres\xca\x02\bPostgres\xe2\x02\x14Postgres\\GPBMetadata\xea\x02\bPostgresb\x06proto3"
 
 var (
@@ -152,17 +162,19 @@ var file_postgres_schema_proto_goTypes = []any{
 	(*EnumDefinition)(nil),      // 2: postgres.EnumDefinition
 	(*CompositeDefinition)(nil), // 3: postgres.CompositeDefinition
 	(*DomainDefinition)(nil),    // 4: postgres.DomainDefinition
+	(*FunctionDefinition)(nil),  // 5: postgres.FunctionDefinition
 }
 var file_postgres_schema_proto_depIdxs = []int32{
 	1, // 0: postgres.PostgresSchema.tables:type_name -> postgres.Table
 	2, // 1: postgres.PostgresSchema.enums:type_name -> postgres.EnumDefinition
 	3, // 2: postgres.PostgresSchema.composites:type_name -> postgres.CompositeDefinition
 	4, // 3: postgres.PostgresSchema.domains:type_name -> postgres.DomainDefinition
-	4, // [4:4] is the sub-list for method output_type
-	4, // [4:4] is the sub-list for method input_type
-	4, // [4:4] is the sub-list for extension type_name
-	4, // [4:4] is the sub-list for extension extendee
-	0, // [0:4] is the sub-list for field type_name
+	5, // 4: postgres.PostgresSchema.functions:type_name -> postgres.FunctionDefinition
+	5, // [5:5] is the sub-list for method output_type
+	5, // [5:5] is the sub-list for method input_type
+	5, // [5:5] is the sub-list for extension type_name
+	5, // [5:5] is the sub-list for extension extendee
+	0, // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_postgres_schema_proto_init() }
@@ -172,6 +184,7 @@ func file_postgres_schema_proto_init() {
 	}
 	file_postgres_table_proto_init()
 	file_postgres_data_type_proto_init()
+	file_postgres_function_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

@@ -13,6 +13,7 @@ type SchemaGraphGo struct {
 	Enums            []*EnumGo
 	Domains          []*DomainGo
 	Composites       []*CompositeGo
+	Functions        []*FunctionGo
 	ActiveCategories map[string]bool
 }
 
@@ -22,6 +23,20 @@ type EnumGo struct {
 }
 
 // DomainGo wraps Domain for Go specific generation.
+// FunctionGo wraps FunctionDefinition for Go specific generation.
+type FunctionGo struct {
+	NameExported string
+	*Function
+	ArgumentsGo  []FunctionArgumentGo
+	ReturnTypeGo string
+}
+
+type FunctionArgumentGo struct {
+	Index  int
+	Name   string
+	GoType string
+}
+
 type DomainGo struct {
 	*Domain
 	BaseGoType string

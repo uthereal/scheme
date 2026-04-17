@@ -15,10 +15,11 @@ type queryTemplateData struct {
 	PkgName     string
 	GoPkgPath   string
 	RootPkgPath string
-	Imports    []string
-	Models     []*ast.ModelGo
-	Composites []*ast.CompositeGo
-	Active     map[string]bool
+	Imports     []string
+	Models      []*ast.ModelGo
+	Functions   []*ast.FunctionGo
+	Composites  []*ast.CompositeGo
+	Active      map[string]bool
 }
 
 //go:embed tmpl/go/*.go.tmpl
@@ -29,7 +30,6 @@ var tmpls = map[string]*template.Template{
 		template.New("go").ParseFS(goTmplFS, "tmpl/go/*.go.tmpl"),
 	),
 }
-
 
 func GenerateRoot(
 	lang gen.Language,
@@ -128,10 +128,11 @@ func generateQueryBuildersGo(
 		PkgName:     goGraph.GoPkgName,
 		GoPkgPath:   goGraph.GoPkgPath,
 		RootPkgPath: lang.Options.GoPackagePath,
-		Imports:    goGraph.ImportList(),
-		Models:     goGraph.Models,
-		Composites: goGraph.Composites,
-		Active:     goGraph.ActiveCategories,
+		Imports:     goGraph.ImportList(),
+		Models:      goGraph.Models,
+		Functions:   goGraph.Functions,
+		Composites:  goGraph.Composites,
+		Active:      goGraph.ActiveCategories,
 	}
 
 	mainTmpl := tmpl.Lookup("main.go.tmpl")

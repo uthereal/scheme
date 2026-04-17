@@ -58,6 +58,10 @@ func ComputeDiff(
 	if err != nil {
 		return nil, err
 	}
+	err = d.planFunctions()
+	if err != nil {
+		return nil, err
+	}
 
 	err = d.planTables()
 	if err != nil {
@@ -723,6 +727,163 @@ func (d *Differ) planComposites() error {
 //     changes).
 //  4. Creates any new target domains that do not exist natively yet.
 //  5. Drops any live database domains that no longer exist in the target state.
+func (d *Differ) planFunctions() error {
+	for sName, targetSchema := range d.target.Schemas {
+		liveSchema, exists := d.scratch.Schemas[sName]
+		if !exists {
+			continue
+		}
+
+		targetFuncNames := make([]string, 0, len(targetSchema.Functions))
+		for k := range targetSchema.Functions {
+			targetFuncNames = append(targetFuncNames, k)
+		}
+		slices.Sort(targetFuncNames)
+
+		funcRenames := make(map[string]pendingRename)
+		for _, tName := range targetFuncNames {
+			targetFunc := targetSchema.Functions[tName]
+			pName := targetFunc.NamePrevious
+			if pName == "" || pName == tName {
+				continue
+			}
+			if _, exists := liveSchema.Functions[tName]; exists {
+				continue
+			}
+			if liveFunc, exists := liveSchema.Functions[pName]; exists {
+				var argTypes []string
+				for _, arg := range liveFunc.Arguments {
+					argTypes = append(argTypes, string(arg.DataType))
+				}
+				argStr := strings.Join(argTypes, ", ")
+				tmpName := "scheme_tmp_func_" + pName
+				d.Actions = append(d.Actions, MigrationAction{
+					Type:       ActionTypeRename,
+					ObjectType: ObjectFunction,
+					Schema:     sName,
+					Name:       tmpName,
+					SQL:        fmt.Sprintf("ALTER FUNCTION %q.%q(%s) RENAME TO %q;", sName, pName, argStr, tmpName),
+				})
+				liveSchema.Functions[tmpName] = liveFunc
+				delete(liveSchema.Functions, pName)
+				funcRenames[tName] = pendingRename{tempName: tmpName}
+			}
+		}
+		for tName, info := range funcRenames {
+			liveFunc := liveSchema.Functions[info.tempName]
+			var argTypes []string
+			for _, arg := range liveFunc.Arguments {
+				argTypes = append(argTypes, string(arg.DataType))
+			}
+			argStr := strings.Join(argTypes, ", ")
+			d.Actions = append(d.Actions, MigrationAction{
+				Type:       ActionTypeRename,
+				ObjectType: ObjectFunction,
+				Schema:     sName,
+				Name:       tName,
+				SQL:        fmt.Sprintf("ALTER FUNCTION %q.%q(%s) RENAME TO %q;", sName, info.tempName, argStr, tName),
+			})
+			liveFunc.Name = tName
+			liveSchema.Functions[tName] = liveFunc
+			delete(liveSchema.Functions, info.tempName)
+		}
+		for _, tName := range targetFuncNames {
+			targetFunc := targetSchema.Functions[tName]
+			liveFunc, exists := liveSchema.Functions[tName]
+			if exists {
+				argsMatch := len(liveFunc.Arguments) == len(targetFunc.Arguments)
+				if argsMatch {
+					for i := range liveFunc.Arguments {
+						if liveFunc.Arguments[i].DataType != targetFunc.Arguments[i].DataType {
+							argsMatch = false
+							break
+						}
+					}
+				}
+				if !argsMatch {
+					var argTypes []string
+					for _, arg := range liveFunc.Arguments {
+						argTypes = append(argTypes, string(arg.DataType))
+					}
+					argStr := strings.Join(argTypes, ", ")
+					d.Actions = append(d.Actions, MigrationAction{
+						Type:       ActionTypeDrop,
+						ObjectType: ObjectFunction,
+						Schema:     sName,
+						Name:       tName,
+						SQL:        fmt.Sprintf("DROP FUNCTION %q.%q(%s) CASCADE;", sName, tName, argStr),
+					})
+					delete(liveSchema.Functions, tName)
+					exists = false
+				} else {
+					if liveFunc.Body == targetFunc.Body && liveFunc.Language == targetFunc.Language && liveFunc.ReturnType == targetFunc.ReturnType {
+						namesMatch := true
+						for i := range liveFunc.Arguments {
+							if liveFunc.Arguments[i].Name != targetFunc.Arguments[i].Name {
+								namesMatch = false
+								break
+							}
+						}
+						if namesMatch {
+							continue
+						}
+					}
+				}
+			}
+			var argDefs []string
+			for _, arg := range targetFunc.Arguments {
+				argDefs = append(argDefs, fmt.Sprintf("%s %s", arg.Name, arg.DataType))
+			}
+			argStr := strings.Join(argDefs, ", ")
+			retStr := string(targetFunc.ReturnType)
+			if retStr == "" {
+				retStr = "void"
+			}
+			d.Actions = append(d.Actions, MigrationAction{
+				Type:       ActionTypeCreate,
+				ObjectType: ObjectFunction,
+				Schema:     sName,
+				Name:       tName,
+				SQL:        fmt.Sprintf("CREATE OR REPLACE FUNCTION %q.%q(%s) RETURNS %s LANGUAGE %s AS $$%s$$;", sName, tName, argStr, retStr, targetFunc.Language, targetFunc.Body),
+			})
+			argsCopy := make([]FunctionArgumentState, len(targetFunc.Arguments))
+			copy(argsCopy, targetFunc.Arguments)
+			liveSchema.Functions[tName] = &FunctionState{
+				Name:       tName,
+				Arguments:  argsCopy,
+				ReturnType: targetFunc.ReturnType,
+				Language:   targetFunc.Language,
+				Body:       targetFunc.Body,
+			}
+		}
+		liveNames := make([]string, 0, len(liveSchema.Functions))
+		for k := range liveSchema.Functions {
+			liveNames = append(liveNames, k)
+		}
+		slices.Sort(liveNames)
+		for _, liveName := range liveNames {
+			liveFunc := liveSchema.Functions[liveName]
+			if _, ok := targetSchema.Functions[liveName]; !ok {
+				var argTypes []string
+				for _, arg := range liveFunc.Arguments {
+					argTypes = append(argTypes, string(arg.DataType))
+				}
+				argStr := strings.Join(argTypes, ", ")
+				d.Actions = append(d.Actions, MigrationAction{
+					Type:          ActionTypeDrop,
+					ObjectType:    ObjectFunction,
+					Schema:        sName,
+					Name:          liveName,
+					SQL:           fmt.Sprintf("DROP FUNCTION %q.%q(%s) CASCADE;", sName, liveName, argStr),
+					IsDestructive: true,
+				})
+				delete(liveSchema.Functions, liveName)
+			}
+		}
+	}
+	return nil
+}
+
 func (d *Differ) planDomains() error {
 	schemaNames := make([]string, 0, len(d.target.Schemas))
 	for k := range d.target.Schemas {

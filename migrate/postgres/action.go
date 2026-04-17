@@ -44,6 +44,7 @@ const (
 	ObjectComposite  ObjectType = "COMPOSITE"
 	ObjectDomain     ObjectType = "DOMAIN"
 	ObjectEnum       ObjectType = "ENUM"
+	ObjectFunction   ObjectType = "FUNCTION"
 	ObjectForeignKey ObjectType = "FOREIGN_KEY"
 	ObjectPrimaryKey ObjectType = "PRIMARY_KEY"
 	ObjectIndex      ObjectType = "INDEX"

@@ -78,8 +78,6 @@ func NewSchemaGraphGo(
 		ActiveCategories: make(map[string]bool),
 	}
 
-
-
 	// Pass 1: Shell Object Stubbing.
 	// Pre-build a map for model resolution by PascalCase name to avoid
 	// O(M^2) latency when processing edges later.
@@ -186,6 +184,37 @@ func NewSchemaGraphGo(
 		sgg.Composites = append(sgg.Composites, (*CompositeGo)(compGo))
 	}
 	slices.SortFunc(sgg.Composites, func(a *CompositeGo, b *CompositeGo) int {
+		return cmp.Compare(a.Name, b.Name)
+	})
+
+	for _, f := range graph.Functions {
+		funcGo := &FunctionGo{
+			Function:     f,
+			NameExported: strcase.ToGoPascal(f.Name),
+		}
+		for _, arg := range f.Arguments {
+			goType, err := sgg.mapDataType(arg.Type, "")
+			if err != nil {
+				return nil, fmt.Errorf("failed to map function arg type -> %w", err)
+			}
+			funcGo.ArgumentsGo = append(funcGo.ArgumentsGo, FunctionArgumentGo{
+				Name:   arg.Name,
+				GoType: goType,
+				Index:  len(funcGo.ArgumentsGo) + 1,
+			})
+		}
+		if f.ReturnType != nil {
+			goType, err := sgg.mapDataType(f.ReturnType, "")
+			if err != nil {
+				return nil, fmt.Errorf("failed to map function return type -> %w", err)
+			}
+			funcGo.ReturnTypeGo = goType
+		} else {
+			funcGo.ReturnTypeGo = ""
+		}
+		sgg.Functions = append(sgg.Functions, funcGo)
+	}
+	slices.SortFunc(sgg.Functions, func(a *FunctionGo, b *FunctionGo) int {
 		return cmp.Compare(a.Name, b.Name)
 	})
 

@@ -18,6 +18,8 @@ import (
 
 {{ template "schema_columns.go.tmpl" . }}
 
+{{ template "functions.go.tmpl" . }}
+
 {{- range .Models }}
   {{ template "base.go.tmpl" . }}
   {{ template "select.go.tmpl" . }}

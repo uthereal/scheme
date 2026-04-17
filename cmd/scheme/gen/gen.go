@@ -202,12 +202,12 @@ func generateRootGo(
 		return fmt.Errorf("failed to create root output directory %q -> %w", outDir, err)
 	}
 
-	filePath := filepath.Join(outDir, "scheme_types." + lang.Extension)
+	filePath := filepath.Join(outDir, "scheme_types."+lang.Extension)
 	err = os.WriteFile(filePath, []byte(content), 0644)
 	if err != nil {
 		return fmt.Errorf("failed to write root output file %q -> %w", filePath, err)
 	}
-	
+
 	logger.InfoContext(
 		ctx,
 		"Generated root output file.",

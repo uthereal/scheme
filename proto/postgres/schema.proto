@@ -4,6 +4,7 @@ package postgres;
 
 import "postgres/table.proto";
 import "postgres/data_type.proto";
+import "postgres/function.proto";
 
 // PostgresSchema represents a single logical namespace within a PostgreSQL database.
 // Schemas are used to organize tables, types, and relations, and to prevent
@@ -29,4 +30,7 @@ message PostgresSchema {
   // Schema-level domain type definitions. Domains are created at the schema level
   // and can be referenced by columns within tables in this or other schemas.
   repeated DomainDefinition domains = 6;
+
+  // Schema-level function definitions.
+  repeated FunctionDefinition functions = 7;
 }

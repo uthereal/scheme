@@ -7,11 +7,27 @@ type SchemaGraph struct {
 	Enums      map[string]*Enum
 	Composites map[string]*Composite
 	Domains    map[string]*Domain
+	Functions  map[string]*Function
 	Models     map[string]*Model
 }
 
 // Domain represents a PostgreSQL domain type.
 // @link https://www.postgresql.org/docs/current/domains.html
+// Function represents a PostgreSQL function or stored procedure.
+type Function struct {
+	Name         string
+	NamePrevious string
+	Arguments    []FunctionArgument
+	ReturnType   *postgres.DataType
+	Language     string
+	Body         string
+}
+
+type FunctionArgument struct {
+	Name string
+	Type *postgres.DataType
+}
+
 type Domain struct {
 	Name     string
 	BaseType *postgres.DataType

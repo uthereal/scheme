@@ -1,0 +1,58 @@
+{{- /* gotype: github.com/uthereal/scheme/gen/postgres/query.queryTemplateData */ -}}
+{{- range .Functions }}
+  {{- $funcName := .NameExported }}
+  {{- $rawName := .Name }}
+
+  // Call{{ $funcName }} executes the "{{ $rawName }}" PostgreSQL function.
+  func Call{{ $funcName }}(
+    ctx context.Context, db rootpkg.DBQuerier,
+    {{- range .ArgumentsGo }}
+    {{ .Name }} {{ .GoType }},
+    {{- end }}
+  ) {{ if .ReturnTypeGo }}({{ .ReturnTypeGo }}, error){{ else }}error{{ end }} {
+    
+    var query strings.Builder
+    query.Grow(128)
+    {{- if .ReturnTypeGo }}
+    query.WriteString("SELECT * FROM \"{{ $rawName }}\"(")
+    {{- else }}
+    query.WriteString("SELECT \"{{ $rawName }}\"(")
+    {{- end }}
+    
+    {{- $argLen := len .ArgumentsGo }}
+    {{- if gt $argLen 0 }}
+      var args []any
+      {{- range $i, $arg := .ArgumentsGo }}
+        {{- if gt $i 0 }}
+          query.WriteString(", ")
+        {{- end }}
+        query.WriteString("${{ .Index }}")
+        args = append(args, {{ $arg.Name }})
+      {{- end }}
+    {{- end }}
+    query.WriteString(")")
+
+    {{- if .ReturnTypeGo }}
+      var result {{ .ReturnTypeGo }}
+      {{- if gt $argLen 0 }}
+        err := db.QueryRowContext(ctx, query.String(), args...).Scan(&result)
+      {{- else }}
+        err := db.QueryRowContext(ctx, query.String()).Scan(&result)
+      {{- end }}
+      if err != nil {
+        return result, err
+      }
+      return result, nil
+    {{- else }}
+      {{- if gt $argLen 0 }}
+        _, err := db.ExecContext(ctx, query.String(), args...)
+      {{- else }}
+        _, err := db.ExecContext(ctx, query.String())
+      {{- end }}
+      if err != nil {
+        return err
+      }
+      return nil
+    {{- end }}
+  }
+{{- end }}

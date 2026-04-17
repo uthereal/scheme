@@ -79,15 +79,15 @@ func main() {
 	}
 
 	// Test: Mutating Records (Update)
-	// This verifies the dynamically generated UpdateOption functions correctly 
-	// serialize into parameterized UPDATE statements and execute against the 
+	// This verifies the dynamically generated UpdateOption functions correctly
+	// serialize into parameterized UPDATE statements and execute against the
 	// database.
 	newAge := int32(30)
 	updatedUsers, affected, err := postgres.NewUserQuery(db).
 		Where(postgres.UserColumns.Username.Eq("test_user")).
 		OptimisticLocking(postgres.UserColumns.Age.EqPtr(users[0].Age)).
 		Returning(
-			postgres.UserColumns.ID, 
+			postgres.UserColumns.ID,
 			postgres.UserColumns.Username,
 			postgres.UserColumns.Email,
 			postgres.UserColumns.Status,
@@ -111,7 +111,7 @@ func main() {
 
 	// Test: Base Query Builder Aggregations
 	// This verifies base query builder functionality (Exists, Paginate).
-	// This proves window functions and COUNT aggregations map natively to the 
+	// This proves window functions and COUNT aggregations map natively to the
 	// generated struct.
 	exists, err := postgres.NewUserQuery(db).
 		Where(postgres.UserColumns.Username.Eq("test_user")).
@@ -169,7 +169,7 @@ func main() {
 	// Test: Single-Column Eager Loading
 	// This verifies the eager loading engine executes cleanly for standard
 	// relations.
-	// Invoking WithPosts() forces the generator to build the sub-queries and 
+	// Invoking WithPosts() forces the generator to build the sub-queries and
 	// traverse the relationship mappings.
 	author, err := postgres.NewUserQuery(db).
 		Where(postgres.UserColumns.ID.Eq(uid)).
@@ -198,6 +198,67 @@ func main() {
 	}
 	if pts[0].Metrics[0].MetricName != "clicks" {
 		panic("composite metric mapping returned incorrect data")
+	}
+
+	// Test: Advanced Where Clauses
+	// Verify String, Number, and other strongly typed where conditions.
+	advUsers, err := postgres.NewUserQuery(db).
+		Where(
+			postgres.UserColumns.Username.Contains("test"),
+			postgres.UserColumns.Age.Gte(20),
+			postgres.UserColumns.Age.Lte(40),
+		).
+		Get(ctx)
+	if err != nil {
+		panic(fmt.Errorf("failed advanced where queries -> %w", err))
+	}
+	if len(advUsers) != 1 {
+		panic("expected 1 user from advanced where queries")
+	}
+	// Test: HasRelationshipWith (EXISTS subqueries)
+	// Verify that parent models can be filtered natively by their relational children
+	// using the Has<Relationship>With generated method which produces EXISTS().
+	hasUsers, err := postgres.NewUserQuery(db).
+		Where(
+			postgres.NewUserQuery(db).HasPostsWith(
+				postgres.PostColumns.Title.ContainsFold("integration"),
+			),
+		).
+		Get(ctx)
+	if err != nil {
+		panic(fmt.Errorf("failed HasRelationshipWith query -> %w", err))
+	}
+	if len(hasUsers) != 1 {
+		panic("expected 1 user from HasRelationshipWith query")
+	}
+	// Test: Call Custom Function
+	// Verify that the generator created the correctly typed wrapper for the PL/pgSQL function.
+	activeUserCount, err := postgres.CallCalculateActiveUsers(ctx, db)
+	if err != nil {
+		panic(fmt.Errorf("failed to call calculate_active_users -> %w", err))
+	}
+	if activeUserCount != 10 {
+		panic(fmt.Sprintf("expected calculate_active_users to return 10, got %v", activeUserCount))
+	}
+	// Verify calling void function with parameters
+	err = postgres.CallAuctionItemPricesRollupInsert(ctx, db, 15, 60)
+	if err != nil {
+		panic(fmt.Errorf("failed to call auction_item_prices_rollup_insert -> %w", err))
+	}
+	// Test: Subquery Filtering (InQuery)
+	// Verify that we can filter using a subquery (e.g. ID IN (SELECT author_id FROM posts WHERE title = ...))
+	usersWithMatchingPost, err := postgres.NewUserQuery(db).
+		Where(postgres.UserColumns.ID.InQuery(
+			postgres.NewPostQuery(db).
+				Select(postgres.PostColumns.AuthorID).
+				Where(postgres.PostColumns.Title.Eq("Integration Testing")),
+		)).
+		Get(ctx)
+	if err != nil {
+		panic(fmt.Errorf("failed child filtering via subquery -> %w", err))
+	}
+	if len(usersWithMatchingPost) != 1 {
+		panic(fmt.Sprintf("expected exactly 1 user with matching post, got %d", len(usersWithMatchingPost)))
 	}
 
 	fmt.Println("SUCCESS")

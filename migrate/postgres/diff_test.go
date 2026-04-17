@@ -614,14 +614,14 @@ func TestDiffer_Plan(t *testing.T) {
 								Name: "users",
 								Indexes: map[string]*IndexState{
 									"idx_email": {
-										Name: "idx_email",
+										Name:     "idx_email",
 										IsUnique: false,
-										Columns: []string{"email"},
+										Columns:  []string{"email"},
 									},
 									"idx_name": {
-										Name: "idx_name",
+										Name:     "idx_name",
 										IsUnique: true,
-										Columns: []string{"first_name", "last_name"},
+										Columns:  []string{"first_name", "last_name"},
 									},
 								},
 							},
@@ -638,14 +638,14 @@ func TestDiffer_Plan(t *testing.T) {
 								Name: "users",
 								Indexes: []*postgres.Index{
 									{
-										Name: "idx_email",
+										Name:     "idx_email",
 										IsUnique: true,
-										Columns: []*postgres.IndexColumn{{Name: "email"}},
+										Columns:  []*postgres.IndexColumn{{Name: "email"}},
 									},
 									{
-										Name: "idx_name",
+										Name:     "idx_name",
 										IsUnique: true,
-										Columns: []*postgres.IndexColumn{{Name: "last_name"}, {Name: "first_name"}},
+										Columns:  []*postgres.IndexColumn{{Name: "last_name"}, {Name: "first_name"}},
 									},
 								},
 							},
@@ -694,14 +694,14 @@ func TestDiffer_Plan(t *testing.T) {
 							"users": {
 								Name: "users",
 								PrimaryKey: &PrimaryKeyState{
-									Name: "users_pkey",
+									Name:    "users_pkey",
 									Columns: []string{"id", "tenant_id"},
 								},
 							},
 							"posts": {
 								Name: "posts",
 								PrimaryKey: &PrimaryKeyState{
-									Name: "posts_pkey",
+									Name:    "posts_pkey",
 									Columns: []string{"id"},
 								},
 							},
@@ -718,7 +718,7 @@ func TestDiffer_Plan(t *testing.T) {
 								Name: "posts",
 							},
 							{
-								Name: "users",
+								Name:        "users",
 								PrimaryKeys: []string{"id"},
 							},
 						},
@@ -760,7 +760,7 @@ func TestDiffer_Plan(t *testing.T) {
 								Name: "posts",
 								ForeignKeys: map[string]*ForeignKeyState{
 									"fk_author": {
-										Name:         "fk_author",
+										Name:     "fk_author",
 										OnDelete: "CASCADE",
 										OnUpdate: "NO ACTION",
 									},
@@ -830,11 +830,11 @@ func TestDiffer_Plan(t *testing.T) {
 						},
 					},
 					"auth": {
-						Name: "auth",
-						Enums: make(map[string]*EnumState),
+						Name:       "auth",
+						Enums:      make(map[string]*EnumState),
 						Composites: make(map[string]*CompositeState),
-						Domains: make(map[string]*DomainState),
-						Tables: make(map[string]*TableState),
+						Domains:    make(map[string]*DomainState),
+						Tables:     make(map[string]*TableState),
 					},
 				},
 			},
@@ -844,7 +844,7 @@ func TestDiffer_Plan(t *testing.T) {
 						Name: "auth",
 						Enums: []*postgres.EnumDefinition{
 							{
-								Name: "role",
+								Name:   "role",
 								Values: []string{"admin", "user"},
 							},
 						},
@@ -862,7 +862,6 @@ func TestDiffer_Plan(t *testing.T) {
 												VarcharType: &postgres.VarcharType{Length: ptr.Int32(255)},
 											},
 										},
-										
 									},
 									{
 										Name: "zipcode",
@@ -871,7 +870,6 @@ func TestDiffer_Plan(t *testing.T) {
 												VarcharType: &postgres.VarcharType{Length: ptr.Int32(20)},
 											},
 										},
-										
 									},
 								},
 							},
@@ -943,7 +941,7 @@ func TestDiffer_Plan(t *testing.T) {
 										TargetSchema: "public",
 										TargetTable:  "users",
 										OnDelete:     "NO ACTION",
-										OnUpdate: "NO ACTION",
+										OnUpdate:     "NO ACTION",
 									},
 								},
 							},

@@ -30,6 +30,22 @@ type CompositeFieldState struct {
 }
 
 // DomainState represents a domain type definition.
+// FunctionArgumentState represents an argument to a function.
+type FunctionArgumentState struct {
+	Name     string
+	DataType migrate.DatabaseDataType
+}
+
+// FunctionState represents a PostgreSQL function or stored procedure.
+type FunctionState struct {
+	Name         string
+	NamePrevious string
+	Arguments    []FunctionArgumentState
+	ReturnType   migrate.DatabaseDataType
+	Language     string
+	Body         string
+}
+
 type DomainState struct {
 	Name         string
 	NamePrevious string
@@ -82,6 +98,7 @@ type SchemaState struct {
 	Enums        map[string]*EnumState
 	Composites   map[string]*CompositeState
 	Domains      map[string]*DomainState
+	Functions    map[string]*FunctionState
 }
 
 // TableState represents a relational database table.
@@ -155,6 +172,20 @@ const (
 		AND a.attnum > 0 AND NOT a.attisdropped
 		AND n.nspname != ALL($1)
 	`
+	queryFunctions = `
+                SELECT
+                        n.nspname AS schema, p.proname AS function_name,
+                        pg_catalog.pg_get_function_identity_arguments(p.oid) AS identity_arguments,
+                        pg_catalog.pg_get_function_result(p.oid) AS return_type,
+                        l.lanname AS language,
+                        p.prosrc AS body,
+                        pg_catalog.pg_get_function_arguments(p.oid) AS arguments
+                FROM pg_proc p
+                JOIN pg_namespace n ON n.oid = p.pronamespace
+                JOIN pg_language l ON l.oid = p.prolang
+                WHERE n.nspname != ALL($1)
+                AND p.prokind = 'f'
+        `
 	queryDomains = `
 		SELECT
 			n.nspname AS schema, t.typname AS domain,
@@ -266,6 +297,7 @@ func NewDatabaseStateFromProto(
 				Enums:        make(map[string]*EnumState, len(s.GetEnums())),
 				Composites:   make(map[string]*CompositeState, len(s.GetComposites())),
 				Domains:      make(map[string]*DomainState, len(s.GetDomains())),
+				Functions:    make(map[string]*FunctionState, len(s.GetFunctions())),
 			}
 
 			for _, e := range s.GetEnums() {
@@ -286,6 +318,38 @@ func NewDatabaseStateFromProto(
 					NamePrevious: d.GetNamePrevious(),
 					DataType:     dbType,
 				}
+			}
+
+			for _, f := range s.GetFunctions() {
+				funcState := &FunctionState{
+					Name:         f.GetName(),
+					NamePrevious: f.GetNamePrevious(),
+					Language:     f.GetLanguage(),
+					Body:         f.GetBody(),
+				}
+				if funcState.Language == "" {
+					funcState.Language = "plpgsql"
+				}
+				for _, arg := range f.GetArguments() {
+					dbType, err := ToDatabaseDataType(arg.GetType())
+					if err != nil {
+						return err
+					}
+					funcState.Arguments = append(funcState.Arguments, FunctionArgumentState{
+						Name:     arg.GetName(),
+						DataType: dbType,
+					})
+				}
+				if f.GetReturnType() != nil {
+					retType, err := ToDatabaseDataType(f.GetReturnType())
+					if err != nil {
+						return err
+					}
+					funcState.ReturnType = retType
+				} else {
+					funcState.ReturnType = "void"
+				}
+				schemaState.Functions[f.GetName()] = funcState
 			}
 
 			for _, c := range s.GetComposites() {
@@ -505,6 +569,7 @@ func NewDatabaseStateFromDb(
 			Enums:      make(map[string]*EnumState),
 			Composites: make(map[string]*CompositeState),
 			Domains:    make(map[string]*DomainState),
+			Functions:  make(map[string]*FunctionState),
 		}
 	}
 	err = sRows.Err()
@@ -739,6 +804,65 @@ func NewDatabaseStateFromDb(
 		return nil, fmt.Errorf("failed iterating domains -> %w", err)
 	}
 
+	ctxFunctionsQuery, cancelCtxFunctionsQuery := context.WithTimeout(
+		ctxTransaction, 30*time.Second,
+	)
+	defer cancelCtxFunctionsQuery()
+	funcRows, err := tx.QueryContext(
+		ctxFunctionsQuery, queryFunctions, internalSchemas,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query functions -> %w", err)
+	}
+	defer func(funcRows *sql.Rows) {
+		_ = funcRows.Close()
+	}(funcRows)
+
+	for funcRows.Next() {
+		var schema, name, identityArgs, returnType, language, body, arguments string
+		err = funcRows.Scan(&schema, &name, &identityArgs, &returnType, &language, &body, &arguments)
+		if err != nil {
+			return nil, fmt.Errorf(
+				"failed to scan function -> %w", err,
+			)
+		}
+
+		s, ok := state.Schemas[schema]
+		if !ok {
+			return nil, fmt.Errorf("schema %q not found", schema)
+		}
+
+		// Parse arguments string into FunctionArgumentState slice
+		var args []FunctionArgumentState
+		if arguments != "" {
+			for _, argStr := range strings.Split(arguments, ",") {
+				argStr = strings.TrimSpace(argStr)
+				parts := strings.SplitN(argStr, " ", 2)
+				if len(parts) == 2 {
+					args = append(args, FunctionArgumentState{
+						Name:     parts[0],
+						DataType: migrate.DatabaseDataType(parts[1]),
+					})
+				}
+			}
+		}
+
+		s.Functions[name] = &FunctionState{
+			Name:       name,
+			Arguments:  args,
+			ReturnType: migrate.DatabaseDataType(returnType),
+			Language:   language,
+			Body:       body,
+		}
+	}
+	err = funcRows.Err()
+	if err != nil {
+		return nil, fmt.Errorf("failed iterating functions -> %w", err)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed iterating domains -> %w", err)
+	}
+
 	ctxPrimaryKeysQuery, cancelCtxPrimaryKeysQuery := context.WithTimeout(
 		ctxTransaction, 30*time.Second,
 	)
@@ -926,6 +1050,7 @@ func (l *DatabaseState) Clone() *DatabaseState {
 			Enums:        make(map[string]*EnumState, len(s.Enums)),
 			Composites:   make(map[string]*CompositeState, len(s.Composites)),
 			Domains:      make(map[string]*DomainState, len(s.Domains)),
+			Functions:    make(map[string]*FunctionState, len(s.Functions)),
 		}
 
 		for tName, t := range s.Tables {
@@ -1018,6 +1143,18 @@ func (l *DatabaseState) Clone() *DatabaseState {
 			sClone.Composites[cName] = cClone
 		}
 
+		for fName, f := range s.Functions {
+			args := make([]FunctionArgumentState, len(f.Arguments))
+			copy(args, f.Arguments)
+			sClone.Functions[fName] = &FunctionState{
+				Name:         f.Name,
+				NamePrevious: f.NamePrevious,
+				Arguments:    args,
+				ReturnType:   f.ReturnType,
+				Language:     f.Language,
+				Body:         f.Body,
+			}
+		}
 		for dName, d := range s.Domains {
 			sClone.Domains[dName] = &DomainState{
 				Name:         d.Name,
