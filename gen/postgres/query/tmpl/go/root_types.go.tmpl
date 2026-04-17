@@ -12,8 +12,8 @@ type DBQuerier interface {
   QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
 }
 
-// QueryBuilder represents an abstract SQL query builder.
-type QueryBuilder interface {
+// SubQuery represents an abstract SQL query builder.
+type SubQuery interface {
   ToSelectSQL(startParamIdx int, withCount bool) (string, []any, error)
 }
 

@@ -1,7 +1,7 @@
 type WhereCondition struct {
   Sql   string
   Args  []any
-  Query QueryBuilder
+  Query SubQuery
   IsOr  bool
   IsNot bool
   Group []WhereCondition
@@ -17,6 +17,16 @@ func Or(conds ...WhereCondition) WhereCondition {
 
 func Not(conds ...WhereCondition) WhereCondition {
   return WhereCondition{Group: conds, IsNot: true}
+}
+
+// Exists returns a WhereCondition for 'EXISTS (subquery)'.
+func Exists(q SubQuery) WhereCondition {
+  return WhereCondition{Sql: "EXISTS", Query: q}
+}
+
+// NotExists returns a WhereCondition for 'NOT EXISTS (subquery)'.
+func NotExists(q SubQuery) WhereCondition {
+  return WhereCondition{Sql: "NOT EXISTS", Query: q}
 }
 
 func BuildConditions(
@@ -52,7 +62,16 @@ func BuildConditions(
       query.WriteString(")")
       args = append(args, gArgs...)
     } else if cond.Query != nil {
-      query.WriteString(cond.Sql)
+      parts := strings.Split(cond.Sql, "?")
+      for j, part := range parts {
+        query.WriteString(part)
+        if j < len(parts)-1 && j < len(cond.Args) {
+          query.WriteString("$")
+          query.Write(strconv.AppendInt(numBuf[:0], int64(*paramIdx), 10))
+          args = append(args, cond.Args[j])
+          *paramIdx++
+        }
+      }
       query.WriteString(" (")
       subSQL, subArgs, err := cond.Query.ToSelectSQL(*paramIdx, false)
       if err != nil {

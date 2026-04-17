@@ -42,7 +42,7 @@ type {{ $modelNameExported }}Pagination struct {
 // {{ $modelNameExported }}Query.
 type {{ $modelNamePrivate }}OrderBy struct {
   Column    string
-  Query     rootpkg.QueryBuilder
+  Query     rootpkg.SubQuery
   Direction rootpkg.OrderDirection
 }
 
@@ -102,6 +102,48 @@ var {{ $modelNameExported }}Columns = {{ $modelNamePrivate }}ColumnsStruct{
   {{- end }}
 }
 
+// {{ $modelNamePrivate }}RelationsStruct defines strongly typed relationships for the
+// {{ .TableFullName }} table.
+type {{ $modelNamePrivate }}RelationsStruct struct {
+  cols {{ $modelNamePrivate }}ColumnsStruct
+}
+
+// As returns a new {{ $modelNamePrivate }}RelationsStruct with the parent columns
+// aliased by the provided table alias.
+func (r {{ $modelNamePrivate }}RelationsStruct) As(
+  alias string,
+) {{ $modelNamePrivate }}RelationsStruct {
+  return {{ $modelNamePrivate }}RelationsStruct{cols: {{ $modelNameExported }}Columns.As(alias)}
+}
+
+var {{ $modelNameExported }}Relations = {{ $modelNamePrivate }}RelationsStruct{
+  cols: {{ $modelNameExported }}Columns.As(`{{ .TableFullName }}`),
+}
+
+{{- range .Edges }}
+  {{- $edge := . }}
+  // {{ $modelNamePrivate }}{{ .Name }}Relation represents a strongly typed relationship builder for the
+  // {{ .Name }} edge.
+  type {{ $modelNamePrivate }}{{ .Name }}Relation struct {
+    cols {{ $modelNamePrivate }}ColumnsStruct
+  }
+
+  // {{ .Name }} returns a relation builder for the {{ .Name }} edge.
+  func (r {{ $modelNamePrivate }}RelationsStruct) {{ .Name }}() {{ $modelNamePrivate }}{{ .Name }}Relation {
+    return {{ $modelNamePrivate }}{{ .Name }}Relation{cols: r.cols}
+  }
+
+  // SubQuery returns a {{ .TargetModel }}SubQuery automatically correlated to the parent table.
+  func (r {{ $modelNamePrivate }}{{ .Name }}Relation) SubQuery() *{{ .TargetModel }}SubQuery {
+    q := &{{ .TargetModel }}SubQuery{}
+    return q.Where(
+      {{- range $i, $lf := .LocalFields }}
+        {{- $tf := index $edge.TargetFields $i }}
+        {{ $edge.TargetModel }}Columns.{{ $tf }}.EqCol(r.cols.{{ $lf }}),
+      {{- end }}
+    )
+  }
+{{- end }}
 
 
 // New{{ $modelNameExported }}Query constructs a new
@@ -199,7 +241,7 @@ func (q *{{ $modelNameExported }}Query) OrderBy(
 
 // OrderByQuery applies a sorting constraint using a sub-query.
 func (q *{{ $modelNameExported }}Query) OrderByQuery(
-  query rootpkg.QueryBuilder, dir rootpkg.OrderDirection,
+  query rootpkg.SubQuery, dir rootpkg.OrderDirection,
 ) *{{ $modelNameExported }}Query {
   clone := *q
   clone.orderBys = make(
@@ -233,35 +275,7 @@ func (q *{{ $modelNameExported }}Query) Offset(
 {{- range .Edges }}
   // With{{ .Name }} tells the query-builder to eager-load the nodes that
   // are connected to the "{{ .NameLower }}" edge.
-  // Has{{ .Name }}With builds an EXISTS clause to filter the current query by
-  // related "{{ .TargetModel }}" records. The target table is automatically
-  // aliased as "{{ .NameLower }}".
-  func (q *{{ $modelNameExported }}Query) Has{{ .Name }}With(
-    wheres ...rootpkg.WhereCondition,
-  ) rootpkg.WhereCondition {
-    var localAlias string
-    if q.alias != "" {
-      localAlias = q.alias
-    } else {
-      localAlias = `{{ $.TableFullName }}`
-    }
-    
-    sub := New{{ .TargetModel }}Query(q.db).As("{{ .NameLower }}").Where(wheres...)
-    {{- $edge := . }}
-    {{- range $i, $lc := .LocalColumns }}
-      {{- $tc := index $edge.TargetColumns $i }}
-      sub = sub.Where(rootpkg.WhereCondition{
-        Sql: `"{{ $edge.NameLower }}"."{{ $tc }}" = ` + localAlias + `."{{ $lc }}"`,
-      })
-    {{- end }}
-    
-    return rootpkg.WhereCondition{
-      Sql: "EXISTS",
-      Query: sub,
-    }
-  }
-
-  func (q *{{ $modelNameExported }}Query) With{{ .Name }}(
+    func (q *{{ $modelNameExported }}Query) With{{ .Name }}(
     opts ...func(*{{ .TargetModel }}Query),
   ) *{{ $modelNameExported }}Query {
     clone := *q

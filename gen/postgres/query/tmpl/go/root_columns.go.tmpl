@@ -367,6 +367,11 @@ func (c ComparableColumn[T]) Eq(val T) WhereCondition {
   return WhereCondition{Sql: c.String() + " = ?", Args: []any{val}}
 }
 
+// EqCol returns a WhereCondition comparing this column to another column.
+func (c ComparableColumn[T]) EqCol(col Column) WhereCondition {
+  return WhereCondition{Sql: c.String() + " = " + col.String()}
+}
+
 // EqPtr returns a WhereCondition for '='. If the provided pointer is nil,
 // it falls back to returning an 'IS NULL' condition.
 func (c ComparableColumn[T]) EqPtr(val *T) WhereCondition {
@@ -379,6 +384,11 @@ func (c ComparableColumn[T]) EqPtr(val *T) WhereCondition {
 // Neq returns a WhereCondition for '!='.
 func (c ComparableColumn[T]) Neq(val T) WhereCondition {
   return WhereCondition{Sql: c.String() + " != ?", Args: []any{val}}
+}
+
+// NeqCol returns a WhereCondition comparing this column to another column.
+func (c ComparableColumn[T]) NeqCol(col Column) WhereCondition {
+  return WhereCondition{Sql: c.String() + " != " + col.String()}
 }
 
 // NeqPtr returns a WhereCondition for '!='. If the provided pointer is nil,
@@ -406,14 +416,14 @@ func (c ArrayableColumn[T]) NotIn(vals ...T) WhereCondition {
   return WhereCondition{Sql: c.String() + " != ALL(?)", Args: []any{vals}}
 }
 
-// InQuery returns a WhereCondition for 'IN' with a sub-query.
-func (c ArrayableColumn[T]) InQuery(q QueryBuilder) WhereCondition {
-  return WhereCondition{Sql: c.String() + " IN", Query: q}
+// InQuery returns a WhereCondition for '? IN (subquery)'.
+func (c ArrayableColumn[T]) InQuery(val T, q SubQuery) WhereCondition {
+  return WhereCondition{Sql: "? IN", Args: []any{val}, Query: q}
 }
 
-// NotInQuery returns a WhereCondition for 'NOT IN' with a sub-query.
-func (c ArrayableColumn[T]) NotInQuery(q QueryBuilder) WhereCondition {
-  return WhereCondition{Sql: c.String() + " NOT IN", Query: q}
+// NotInQuery returns a WhereCondition for '? NOT IN (subquery)'.
+func (c ArrayableColumn[T]) NotInQuery(val T, q SubQuery) WhereCondition {
+  return WhereCondition{Sql: "? NOT IN", Args: []any{val}, Query: q}
 }
 
 // Gt returns a WhereCondition for '>'.

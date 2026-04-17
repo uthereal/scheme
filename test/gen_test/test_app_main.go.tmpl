@@ -125,6 +125,23 @@ func main() {
 		panic("pagination failed")
 	}
 
+	// Test: OrderByQuery using SubQuery
+	// Verify that we can sort records using a related subquery.
+	orderedUsers, err := postgres.NewUserQuery(db).
+		OrderByQuery(
+			postgres.UserRelations.Posts().SubQuery().
+				Select(postgres.PostColumns.Title).
+				Limit(1), // Subqueries in ORDER BY usually require LIMIT 1 if returning single value
+			postgres.OrderDesc,
+		).
+		Get(ctx)
+	if err != nil {
+		panic(fmt.Errorf("failed OrderByQuery query -> %w", err))
+	}
+	if len(orderedUsers) == 0 {
+		panic("expected users from OrderByQuery query")
+	}
+
 	// Setup: Populate Deep Graph Relations
 	// This seeds data for our eager loading verification blocks.
 	post, err := postgres.NewPostQuery(db).Create(ctx,
@@ -215,21 +232,24 @@ func main() {
 	if len(advUsers) != 1 {
 		panic("expected 1 user from advanced where queries")
 	}
-	// Test: HasRelationshipWith (EXISTS subqueries)
-	// Verify that parent models can be filtered natively by their relational children
-	// using the Has<Relationship>With generated method which produces EXISTS().
-	hasUsers, err := postgres.NewUserQuery(db).
+
+
+	// Test: Exists and SubQuery Relationship Filtering
+	// Verify that parent models can be filtered using the globally available Exists
+	// function and the automatically correlated Relations.SubQuery() builders.
+	existsUsers, err := postgres.NewUserQuery(db).
 		Where(
-			postgres.NewUserQuery(db).HasPostsWith(
-				postgres.PostColumns.Title.ContainsFold("integration"),
+			postgres.Exists(
+				postgres.UserRelations.Posts().SubQuery().
+					Where(postgres.PostColumns.Title.ContainsFold("integration")),
 			),
 		).
 		Get(ctx)
 	if err != nil {
-		panic(fmt.Errorf("failed HasRelationshipWith query -> %w", err))
+		panic(fmt.Errorf("failed Exists and SubQuery query -> %w", err))
 	}
-	if len(hasUsers) != 1 {
-		panic("expected 1 user from HasRelationshipWith query")
+	if len(existsUsers) != 1 {
+		panic("expected 1 user from Exists and SubQuery query")
 	}
 	// Test: Call Custom Function
 	// Verify that the generator created the correctly typed wrapper for the PL/pgSQL function.
@@ -246,9 +266,10 @@ func main() {
 		panic(fmt.Errorf("failed to call auction_item_prices_rollup_insert -> %w", err))
 	}
 	// Test: Subquery Filtering (InQuery)
-	// Verify that we can filter using a subquery (e.g. ID IN (SELECT author_id FROM posts WHERE title = ...))
+	// Verify that we can filter using a subquery against a literal value (e.g. ? IN (SELECT author_id FROM posts WHERE title = ...))
 	usersWithMatchingPost, err := postgres.NewUserQuery(db).
 		Where(postgres.UserColumns.ID.InQuery(
+			uid,
 			postgres.NewPostQuery(db).
 				Select(postgres.PostColumns.AuthorID).
 				Where(postgres.PostColumns.Title.Eq("Integration Testing")),
@@ -257,8 +278,8 @@ func main() {
 	if err != nil {
 		panic(fmt.Errorf("failed child filtering via subquery -> %w", err))
 	}
-	if len(usersWithMatchingPost) != 1 {
-		panic(fmt.Sprintf("expected exactly 1 user with matching post, got %d", len(usersWithMatchingPost)))
+	if len(usersWithMatchingPost) != 2 {
+		panic(fmt.Sprintf("expected exactly 2 users with matching post, got %d", len(usersWithMatchingPost)))
 	}
 
 	fmt.Println("SUCCESS")

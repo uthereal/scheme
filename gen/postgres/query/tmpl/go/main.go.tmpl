@@ -20,8 +20,28 @@ import (
 
 {{ template "functions.go.tmpl" . }}
 
+// Exists returns a WhereCondition for 'EXISTS (subquery)'.
+func Exists(q rootpkg.SubQuery) rootpkg.WhereCondition {
+	return rootpkg.Exists(q)
+}
+
+// NotExists returns a WhereCondition for 'NOT EXISTS (subquery)'.
+func NotExists(q rootpkg.SubQuery) rootpkg.WhereCondition {
+	return rootpkg.NotExists(q)
+}
+
+const (
+  OrderAsc            = rootpkg.OrderAsc
+  OrderDesc           = rootpkg.OrderDesc
+  OrderAscNullsFirst  = rootpkg.OrderAscNullsFirst
+  OrderAscNullsLast   = rootpkg.OrderAscNullsLast
+  OrderDescNullsFirst = rootpkg.OrderDescNullsFirst
+  OrderDescNullsLast  = rootpkg.OrderDescNullsLast
+)
+
 {{- range .Models }}
   {{ template "base.go.tmpl" . }}
+  {{ template "subquery.go.tmpl" . }}
   {{ template "select.go.tmpl" . }}
   {{ template "fetch.go.tmpl" . }}
   {{ template "mutate_create.go.tmpl" . }}

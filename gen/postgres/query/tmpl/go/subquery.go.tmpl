@@ -1,0 +1,272 @@
+{{- /* gotype: github.com/uthereal/scheme/gen/postgres/ast.ModelGo */ -}}
+
+{{- $modelNameExported := .Name }}
+{{- $modelNamePrivate := .StructNamePrivate }}
+
+// {{ $modelNameExported }}SubQuery represents a strongly typed sub-query builder for
+// the {{ .TableFullName }} table.
+type {{ $modelNameExported }}SubQuery struct {
+  alias     string
+  selects   []rootpkg.Column
+  wheres    []rootpkg.WhereCondition
+  groupBys  []rootpkg.Column
+  havings   []rootpkg.WhereCondition
+  orderBys  []{{ $modelNamePrivate }}OrderBy
+  limit     *int
+  offset    *int
+}
+
+// As aliases the table for this query.
+func (q *{{ $modelNameExported }}SubQuery) As(
+  alias string,
+) *{{ $modelNameExported }}SubQuery {
+  clone := *q
+  clone.alias = alias
+  return &clone
+}
+
+// Select specifies the exact columns to retrieve from the database.
+func (q *{{ $modelNameExported }}SubQuery) Select(
+  cols ...rootpkg.Column,
+) *{{ $modelNameExported }}SubQuery {
+  clone := *q
+  clone.selects = make([]rootpkg.Column, len(q.selects), len(q.selects)+len(cols))
+  copy(clone.selects, q.selects)
+  clone.selects = append(clone.selects, cols...)
+  return &clone
+}
+
+// Where applies one or more conditional constraints to the query.
+func (q *{{ $modelNameExported }}SubQuery) Where(
+  conds ...rootpkg.WhereCondition,
+) *{{ $modelNameExported }}SubQuery {
+  clone := *q
+  clone.wheres = make([]rootpkg.WhereCondition, len(q.wheres), len(q.wheres)+len(conds))
+  copy(clone.wheres, q.wheres)
+  clone.wheres = append(clone.wheres, conds...)
+  return &clone
+}
+
+// GroupBy specifies the columns to use for grouping the result set.
+func (q *{{ $modelNameExported }}SubQuery) GroupBy(
+  cols ...rootpkg.Column,
+) *{{ $modelNameExported }}SubQuery {
+  clone := *q
+  clone.groupBys = make([]rootpkg.Column, len(q.groupBys), len(q.groupBys)+len(cols))
+  copy(clone.groupBys, q.groupBys)
+  clone.groupBys = append(clone.groupBys, cols...)
+  return &clone
+}
+
+// Having applies one or more conditional constraints to grouped records.
+func (q *{{ $modelNameExported }}SubQuery) Having(
+  conds ...rootpkg.WhereCondition,
+) *{{ $modelNameExported }}SubQuery {
+  clone := *q
+  clone.havings = make(
+    []rootpkg.WhereCondition, len(q.havings), len(q.havings)+len(conds),
+  )
+  copy(clone.havings, q.havings)
+  clone.havings = append(clone.havings, conds...)
+  return &clone
+}
+
+// OrderBy applies a sorting constraint to the query.
+func (q *{{ $modelNameExported }}SubQuery) OrderBy(
+  col rootpkg.Column, dir rootpkg.OrderDirection,
+) *{{ $modelNameExported }}SubQuery {
+  clone := *q
+  clone.orderBys = make(
+    []{{ $modelNamePrivate }}OrderBy, len(q.orderBys), len(q.orderBys)+1,
+  )
+  copy(clone.orderBys, q.orderBys)
+  clone.orderBys = append(clone.orderBys, {{ $modelNamePrivate }}OrderBy{
+    Column: col.String(), Direction: dir,
+  })
+  return &clone
+}
+
+// OrderByQuery applies a sorting constraint using a sub-query.
+func (q *{{ $modelNameExported }}SubQuery) OrderByQuery(
+  query rootpkg.SubQuery, dir rootpkg.OrderDirection,
+) *{{ $modelNameExported }}SubQuery {
+  clone := *q
+  clone.orderBys = make(
+    []{{ $modelNamePrivate }}OrderBy, len(q.orderBys), len(q.orderBys)+1,
+  )
+  copy(clone.orderBys, q.orderBys)
+  clone.orderBys = append(clone.orderBys, {{ $modelNamePrivate }}OrderBy{
+    Query: query, Direction: dir,
+  })
+  return &clone
+}
+
+// Limit sets the maximum number of records to return.
+func (q *{{ $modelNameExported }}SubQuery) Limit(
+  limit int,
+) *{{ $modelNameExported }}SubQuery {
+  clone := *q
+  clone.limit = &limit
+  return &clone
+}
+
+// Offset sets the number of records to skip before starting to return results.
+func (q *{{ $modelNameExported }}SubQuery) Offset(
+  offset int,
+) *{{ $modelNameExported }}SubQuery {
+  clone := *q
+  clone.offset = &offset
+  return &clone
+}
+
+
+
+{{- $modelName := .Name }}
+
+// buildSelect constructs the SELECT clause and closure mappers for the query.
+func (q *{{ $modelName }}SubQuery) buildSelect() (
+  string, []func(*{{ $modelName }}, []any, int), error,
+) {
+  cols := q.selects
+  if len(cols) == 0 {
+    cols = []rootpkg.Column{
+      {{- range .Fields }}
+        {{ $modelName }}Columns.{{ .Name }},
+      {{- end }}
+    }
+  }
+
+  var colStr strings.Builder
+  colStr.Grow(128)
+  colMappers := make([]func(*{{ $modelName }}, []any, int), len(cols))
+
+  for i, col := range cols {
+    if i > 0 {
+      colStr.WriteString(", ")
+    }
+    colStr.WriteString(col.String())
+
+    colName := col.String()
+    asIdx := strings.Index(strings.ToUpper(colName), " AS ")
+    if asIdx >= 0 {
+      colName = colName[:asIdx]
+    }
+    idx := strings.LastIndexByte(colName, '.')
+    if idx >= 0 {
+      colName = colName[idx+1:]
+    }
+    colName = strings.Trim(colName, `"`)
+
+    switch colName {
+    {{- range .Fields }}
+    case "{{ .ColumnName }}":
+      colMappers[i] = func(row *{{ $modelName }}, ptrs []any, idx int) {
+        ptrs[idx] = &row.{{ .Name }}
+      }
+    {{- end }}
+    default:
+      return "", nil, fmt.Errorf("unknown column -> %s", col.String())
+    }
+  }
+
+  return colStr.String(), colMappers, nil
+}
+
+// ToSelectSQL builds the complete parameterized SELECT SQL statement 
+// and its arguments.
+func (q *{{ $modelName }}SubQuery) ToSelectSQL(
+  startParamIdx int, withCount bool,
+) (string, []any, error) {
+  colStr, _, err := q.buildSelect()
+  if err != nil {
+    return "", nil, err
+  }
+
+  var query strings.Builder
+  var numBuf [20]byte
+  query.Grow(256)
+  query.WriteString("SELECT ")
+  query.WriteString(colStr)
+
+  if withCount {
+    query.WriteString(", COUNT(*) OVER()")
+  }
+  query.WriteString(` FROM {{ .TableFullName }}`)
+  if q.alias != "" {
+    query.WriteString(" AS ")
+    query.WriteString(q.alias)
+  }
+
+  var args []any
+  paramIdx := startParamIdx
+
+  if len(q.wheres) > 0 {
+    query.WriteString(" WHERE ")
+    whereSQL, whereArgs, err := rootpkg.BuildConditions(q.wheres, &paramIdx)
+    if err != nil {
+      return "", nil, err
+    }
+    query.WriteString(whereSQL)
+    args = append(args, whereArgs...)
+  }
+
+  if len(q.groupBys) > 0 {
+    query.WriteString(" GROUP BY ")
+    for i, ob := range q.groupBys {
+      if i > 0 {
+        query.WriteString(", ")
+      }
+      query.WriteString(ob.String())
+    }
+  }
+
+  if len(q.havings) > 0 {
+    query.WriteString(" HAVING ")
+    havingSQL, havingArgs, err := rootpkg.BuildConditions(q.havings, &paramIdx)
+    if err != nil {
+      return "", nil, err
+    }
+    query.WriteString(havingSQL)
+    args = append(args, havingArgs...)
+  }
+
+  if len(q.orderBys) > 0 {
+    query.WriteString(" ORDER BY ")
+    for i, ob := range q.orderBys {
+      if i > 0 {
+        query.WriteString(", ")
+      }
+      if ob.Query != nil {
+        query.WriteString("(")
+        subSQL, subArgs, err := ob.Query.ToSelectSQL(paramIdx, false)
+        if err != nil {
+          return "", nil, err
+        }
+        query.WriteString(subSQL)
+        query.WriteString(") ")
+        args = append(args, subArgs...)
+        paramIdx += len(subArgs)
+      } else {
+        query.WriteString(ob.Column)
+        query.WriteString(" ")
+      }
+      query.WriteString(string(ob.Direction))
+    }
+  }
+
+  if q.limit != nil {
+    query.WriteString(" LIMIT $")
+    query.Write(strconv.AppendInt(numBuf[:0], int64(paramIdx), 10))
+    args = append(args, *q.limit)
+    paramIdx++
+  }
+
+  if q.offset != nil {
+    query.WriteString(" OFFSET $")
+    query.Write(strconv.AppendInt(numBuf[:0], int64(paramIdx), 10))
+    args = append(args, *q.offset)
+    paramIdx++
+  }
+
+  return query.String(), args, nil
+}
