@@ -32,6 +32,12 @@ func NotExists(q SubQuery) WhereCondition {
 func BuildConditions(
   conds []WhereCondition, paramIdx *int,
 ) (string, []any, error) {
+  return buildConditions(conds, paramIdx, false)
+}
+
+func buildConditions(
+  conds []WhereCondition, paramIdx *int, isOr bool,
+) (string, []any, error) {
   if len(conds) == 0 {
     return "", nil, nil
   }
@@ -41,7 +47,7 @@ func BuildConditions(
 
   for i, cond := range conds {
     if i > 0 {
-      if cond.IsOr {
+      if isOr {
         query.WriteString(" OR ")
       } else {
         query.WriteString(" AND ")
@@ -54,7 +60,7 @@ func BuildConditions(
 
     if len(cond.Group) > 0 {
       query.WriteString("(")
-      gSQL, gArgs, err := BuildConditions(cond.Group, paramIdx)
+      gSQL, gArgs, err := buildConditions(cond.Group, paramIdx, cond.IsOr)
       if err != nil {
         return "", nil, err
       }

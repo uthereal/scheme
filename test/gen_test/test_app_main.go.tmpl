@@ -135,6 +135,22 @@ func main() {
 		panic("PaginateSimple last page failed")
 	}
 
+	// Test: OR Conditions
+	// Verify that the BuildConditions closure accurately passes the logic operator down
+	// to prevent " AND " from overriding " OR " during child processing.
+	orUsers, err := postgres.NewUserQuery(db).
+		Where(postgres.Or(
+			postgres.UserColumns.Username.Eq("test_user"),
+			postgres.UserColumns.Username.Eq("non_existent"),
+		)).
+		Get(ctx)
+	if err != nil {
+		panic(fmt.Errorf("failed OR query -> %w", err))
+	}
+	if len(orUsers) != 1 {
+		panic("expected exactly 1 user from OR query")
+	}
+
 	// Test: OrderByQuery using SubQuery
 	// Verify that we can sort records using a related subquery.
 	orderedUsers, err := postgres.NewUserQuery(db).

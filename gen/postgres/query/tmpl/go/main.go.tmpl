@@ -20,6 +20,21 @@ import (
 
 {{ template "functions.go.tmpl" . }}
 
+// And returns a WhereCondition that joins multiple conditions with AND.
+func And(conds ...rootpkg.WhereCondition) rootpkg.WhereCondition {
+  return rootpkg.And(conds...)
+}
+
+// Or returns a WhereCondition that joins multiple conditions with OR.
+func Or(conds ...rootpkg.WhereCondition) rootpkg.WhereCondition {
+  return rootpkg.Or(conds...)
+}
+
+// Not returns a WhereCondition that negates the given conditions.
+func Not(conds ...rootpkg.WhereCondition) rootpkg.WhereCondition {
+  return rootpkg.Not(conds...)
+}
+
 // Exists returns a WhereCondition for 'EXISTS (subquery)'.
 func Exists(q rootpkg.SubQuery) rootpkg.WhereCondition {
 	return rootpkg.Exists(q)
