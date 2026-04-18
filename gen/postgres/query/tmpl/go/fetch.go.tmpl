@@ -334,10 +334,7 @@ func (q *{{ $modelName }}Query) loadEdges(
         sqlBuilder.WriteString(")")
         {{- end }}
 
-        builder := q.with{{ $edgeName }}.Where(rootpkg.WhereCondition{
-          Sql:  sqlBuilder.String(),
-          Args: args,
-        })
+        builder := q.with{{ $edgeName }}.Where(rootpkg.Expr(sqlBuilder.String(), args...))
         loaded, err := builder.Get(ctx)
         if err != nil {
           return err

@@ -13,7 +13,7 @@ type {{ $modelNameExported }}Query struct {
   wheres    []rootpkg.WhereCondition
   groupBys  []rootpkg.Column
   havings   []rootpkg.WhereCondition
-  orderBys  []{{ $modelNamePrivate }}OrderBy
+  orderBys  []rootpkg.OrderCondition
   limit     *int
   offset    *int
 
@@ -47,11 +47,6 @@ type {{ $modelNameExported }}SimplePagination struct {
 
 // {{ $modelNamePrivate }}OrderBy defines a single ORDER BY constraint for a
 // {{ $modelNameExported }}Query.
-type {{ $modelNamePrivate }}OrderBy struct {
-  Column    string
-  Query     rootpkg.SubQuery
-  Direction rootpkg.OrderDirection
-}
 
 // {{ $modelNamePrivate }}ColumnsStruct defines strongly typed columns for the
 // {{ .TableFullName }} table.
@@ -195,7 +190,11 @@ func (q *{{ $modelNameExported }}Query) Where(
   clone := *q
   clone.wheres = make([]rootpkg.WhereCondition, len(q.wheres), len(q.wheres)+len(conds))
   copy(clone.wheres, q.wheres)
-  clone.wheres = append(clone.wheres, conds...)
+  for _, c := range conds {
+    if c != nil {
+      clone.wheres = append(clone.wheres, c)
+    }
+  }
   return &clone
 }
 
@@ -223,43 +222,33 @@ func (q *{{ $modelNameExported }}Query) Having(
   conds ...rootpkg.WhereCondition,
 ) *{{ $modelNameExported }}Query {
   clone := *q
-  clone.havings = make(
-    []rootpkg.WhereCondition, len(q.havings), len(q.havings)+len(conds),
-  )
+  clone.havings = make([]rootpkg.WhereCondition, len(q.havings), len(q.havings)+len(conds))
   copy(clone.havings, q.havings)
-  clone.havings = append(clone.havings, conds...)
+  for _, c := range conds {
+    if c != nil {
+      clone.havings = append(clone.havings, c)
+    }
+  }
   return &clone
 }
 
 // OrderBy applies a sorting constraint to the query.
 func (q *{{ $modelNameExported }}Query) OrderBy(
-  col rootpkg.Column, dir rootpkg.OrderDirection,
+  conds ...rootpkg.OrderCondition,
 ) *{{ $modelNameExported }}Query {
   clone := *q
   clone.orderBys = make(
-    []{{ $modelNamePrivate }}OrderBy, len(q.orderBys), len(q.orderBys)+1,
+    []rootpkg.OrderCondition, len(q.orderBys), len(q.orderBys)+len(conds),
   )
   copy(clone.orderBys, q.orderBys)
-  clone.orderBys = append(clone.orderBys, {{ $modelNamePrivate }}OrderBy{
-    Column: col.String(), Direction: dir,
-  })
+  for _, c := range conds {
+    if c != nil {
+      clone.orderBys = append(clone.orderBys, c)
+    }
+  }
   return &clone
 }
 
-// OrderByQuery applies a sorting constraint using a sub-query.
-func (q *{{ $modelNameExported }}Query) OrderByQuery(
-  query rootpkg.SubQuery, dir rootpkg.OrderDirection,
-) *{{ $modelNameExported }}Query {
-  clone := *q
-  clone.orderBys = make(
-    []{{ $modelNamePrivate }}OrderBy, len(q.orderBys), len(q.orderBys)+1,
-  )
-  copy(clone.orderBys, q.orderBys)
-  clone.orderBys = append(clone.orderBys, {{ $modelNamePrivate }}OrderBy{
-    Query: query, Direction: dir,
-  })
-  return &clone
-}
 
 // Limit sets the maximum number of records to return.
 func (q *{{ $modelNameExported }}Query) Limit(
@@ -294,3 +283,15 @@ func (q *{{ $modelNameExported }}Query) Offset(
     return &clone
   }
 {{- end }}
+
+
+
+
+
+
+
+
+
+
+
+

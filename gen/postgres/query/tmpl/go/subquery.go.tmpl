@@ -11,7 +11,7 @@ type {{ $modelNameExported }}SubQuery struct {
   wheres    []rootpkg.WhereCondition
   groupBys  []rootpkg.Column
   havings   []rootpkg.WhereCondition
-  orderBys  []{{ $modelNamePrivate }}OrderBy
+  orderBys  []rootpkg.OrderCondition
   limit     *int
   offset    *int
 }
@@ -43,7 +43,11 @@ func (q *{{ $modelNameExported }}SubQuery) Where(
   clone := *q
   clone.wheres = make([]rootpkg.WhereCondition, len(q.wheres), len(q.wheres)+len(conds))
   copy(clone.wheres, q.wheres)
-  clone.wheres = append(clone.wheres, conds...)
+  for _, c := range conds {
+    if c != nil {
+      clone.wheres = append(clone.wheres, c)
+    }
+  }
   return &clone
 }
 
@@ -63,43 +67,33 @@ func (q *{{ $modelNameExported }}SubQuery) Having(
   conds ...rootpkg.WhereCondition,
 ) *{{ $modelNameExported }}SubQuery {
   clone := *q
-  clone.havings = make(
-    []rootpkg.WhereCondition, len(q.havings), len(q.havings)+len(conds),
-  )
+  clone.havings = make([]rootpkg.WhereCondition, len(q.havings), len(q.havings)+len(conds))
   copy(clone.havings, q.havings)
-  clone.havings = append(clone.havings, conds...)
+  for _, c := range conds {
+    if c != nil {
+      clone.havings = append(clone.havings, c)
+    }
+  }
   return &clone
 }
 
 // OrderBy applies a sorting constraint to the query.
 func (q *{{ $modelNameExported }}SubQuery) OrderBy(
-  col rootpkg.Column, dir rootpkg.OrderDirection,
+  conds ...rootpkg.OrderCondition,
 ) *{{ $modelNameExported }}SubQuery {
   clone := *q
   clone.orderBys = make(
-    []{{ $modelNamePrivate }}OrderBy, len(q.orderBys), len(q.orderBys)+1,
+    []rootpkg.OrderCondition, len(q.orderBys), len(q.orderBys)+len(conds),
   )
   copy(clone.orderBys, q.orderBys)
-  clone.orderBys = append(clone.orderBys, {{ $modelNamePrivate }}OrderBy{
-    Column: col.String(), Direction: dir,
-  })
+  for _, c := range conds {
+    if c != nil {
+      clone.orderBys = append(clone.orderBys, c)
+    }
+  }
   return &clone
 }
 
-// OrderByQuery applies a sorting constraint using a sub-query.
-func (q *{{ $modelNameExported }}SubQuery) OrderByQuery(
-  query rootpkg.SubQuery, dir rootpkg.OrderDirection,
-) *{{ $modelNameExported }}SubQuery {
-  clone := *q
-  clone.orderBys = make(
-    []{{ $modelNamePrivate }}OrderBy, len(q.orderBys), len(q.orderBys)+1,
-  )
-  copy(clone.orderBys, q.orderBys)
-  clone.orderBys = append(clone.orderBys, {{ $modelNamePrivate }}OrderBy{
-    Query: query, Direction: dir,
-  })
-  return &clone
-}
 
 // Limit sets the maximum number of records to return.
 func (q *{{ $modelNameExported }}SubQuery) Limit(
@@ -236,21 +230,12 @@ func (q *{{ $modelName }}SubQuery) ToSelectSQL(
       if i > 0 {
         query.WriteString(", ")
       }
-      if ob.Query != nil {
-        query.WriteString("(")
-        subSQL, subArgs, err := ob.Query.ToSelectSQL(paramIdx, false)
-        if err != nil {
-          return "", nil, err
-        }
-        query.WriteString(subSQL)
-        query.WriteString(") ")
-        args = append(args, subArgs...)
-        paramIdx += len(subArgs)
-      } else {
-        query.WriteString(ob.Column)
-        query.WriteString(" ")
+      obSQL, obArgs, err := ob.BuildOrderSQL(&paramIdx)
+      if err != nil {
+        return "", nil, err
       }
-      query.WriteString(string(ob.Direction))
+      query.WriteString(obSQL)
+      args = append(args, obArgs...)
     }
   }
 
@@ -269,4 +254,43 @@ func (q *{{ $modelName }}SubQuery) ToSelectSQL(
   }
 
   return query.String(), args, nil
+}
+// Asc returns an OrderCondition for ASC direction.
+func (q *{{ $modelNameExported }}SubQuery) Asc() rootpkg.OrderCondition {
+  return rootpkg.OrderSubQuery(q, rootpkg.OrderAsc)
+}
+
+// Desc returns an OrderCondition for DESC direction.
+func (q *{{ $modelNameExported }}SubQuery) Desc() rootpkg.OrderCondition {
+  return rootpkg.OrderSubQuery(q, rootpkg.OrderDesc)
+}
+
+// AscNullsFirst returns an OrderCondition for ASC NULLS FIRST direction.
+func (q *{{ $modelNameExported }}SubQuery) AscNullsFirst() rootpkg.OrderCondition {
+  return rootpkg.OrderSubQuery(q, rootpkg.OrderAscNullsFirst)
+}
+
+// DescNullsFirst returns an OrderCondition for DESC NULLS FIRST direction.
+func (q *{{ $modelNameExported }}SubQuery) DescNullsFirst() rootpkg.OrderCondition {
+  return rootpkg.OrderSubQuery(q, rootpkg.OrderDescNullsFirst)
+}
+
+// AscNullsLast returns an OrderCondition for ASC NULLS LAST direction.
+func (q *{{ $modelNameExported }}SubQuery) AscNullsLast() rootpkg.OrderCondition {
+  return rootpkg.OrderSubQuery(q, rootpkg.OrderAscNullsLast)
+}
+
+// DescNullsLast returns an OrderCondition for DESC NULLS LAST direction.
+func (q *{{ $modelNameExported }}SubQuery) DescNullsLast() rootpkg.OrderCondition {
+  return rootpkg.OrderSubQuery(q, rootpkg.OrderDescNullsLast)
+}
+
+// Exists returns a WhereCondition for 'EXISTS (subquery)'.
+func (q *{{ $modelNameExported }}SubQuery) Exists() rootpkg.WhereCondition {
+  return rootpkg.Exists(q)
+}
+
+// NotExists returns a WhereCondition for 'NOT EXISTS (subquery)'.
+func (q *{{ $modelNameExported }}SubQuery) NotExists() rootpkg.WhereCondition {
+  return rootpkg.NotExists(q)
 }

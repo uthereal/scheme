@@ -19,6 +19,13 @@ type SubQuery interface {
 
 // Column represents a strongly typed database column.
 type Column interface {
+  Asc() OrderCondition
+  Desc() OrderCondition
+  AscNullsFirst() OrderCondition
+  DescNullsFirst() OrderCondition
+  AscNullsLast() OrderCondition
+  DescNullsLast() OrderCondition
+
   String() string
 }
 

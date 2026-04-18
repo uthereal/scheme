@@ -151,21 +151,53 @@ func main() {
 		panic("expected exactly 1 user from OR query")
 	}
 
-	// Test: OrderByQuery using SubQuery
-	// Verify that we can sort records using a related subquery.
-	orderedUsers, err := postgres.NewUserQuery(db).
-		OrderByQuery(
-			postgres.UserRelations.Posts().SubQuery().
-				Select(postgres.PostColumns.Title).
-				Limit(1), // Subqueries in ORDER BY usually require LIMIT 1 if returning single value
-			postgres.OrderDesc,
+		// Test: Complex Nested Conditions (AND/OR trees)
+	// Verify that deep groupings of AND/OR clauses evaluate correctly.
+	complexUsers, err := postgres.NewUserQuery(db).
+		Where(
+			postgres.Or(
+				postgres.UserColumns.Username.Eq("non_existent"),
+				postgres.And(
+					postgres.UserColumns.Username.Eq("test_user"),
+					postgres.UserColumns.Age.Neq(999), // Always true
+				),
+			),
+			postgres.Or(
+				postgres.UserColumns.Username.Eq("non_existent"),
+				postgres.And(
+					postgres.Or(
+						postgres.UserColumns.Age.Eq(1000), // False
+						postgres.UserColumns.Age.Gt(0),    // True
+					),
+					postgres.And(
+						postgres.UserColumns.Email.Contains("@"), // True
+						postgres.UserColumns.Status.Eq("ACTIVE"), // True
+					),
+				),
+			),
 		).
 		Get(ctx)
 	if err != nil {
-		panic(fmt.Errorf("failed OrderByQuery query -> %w", err))
+		panic(fmt.Errorf("failed complex nested query -> %w", err))
+	}
+	if len(complexUsers) != 1 {
+		panic("expected exactly 1 user from complex nested query")
+	}
+
+	// Test: OrderBy subquery using SubQuery
+	// Verify that we can sort records using a related subquery.
+	orderedUsers, err := postgres.NewUserQuery(db).
+		OrderBy(
+			postgres.UserRelations.Posts().SubQuery().
+				Select(postgres.PostColumns.Title).
+				Limit(1).Desc(), // Subqueries in ORDER BY usually require LIMIT 1 if returning single value
+		).
+		Get(ctx)
+	if err != nil {
+		panic(fmt.Errorf("failed OrderBy subquery query -> %w", err))
 	}
 	if len(orderedUsers) == 0 {
-		panic("expected users from OrderByQuery query")
+		panic("expected users from OrderBy subquery query")
 	}
 
 	// Setup: Populate Deep Graph Relations
@@ -265,10 +297,7 @@ func main() {
 	// function and the automatically correlated Relations.SubQuery() builders.
 	existsUsers, err := postgres.NewUserQuery(db).
 		Where(
-			postgres.Exists(
-				postgres.UserRelations.Posts().SubQuery().
-					Where(postgres.PostColumns.Title.ContainsFold("integration")),
-			),
+      postgres.UserRelations.Posts().SubQuery().Where(postgres.PostColumns.Title.ContainsFold("integration")).Exists(),
 		).
 		Get(ctx)
 	if err != nil {

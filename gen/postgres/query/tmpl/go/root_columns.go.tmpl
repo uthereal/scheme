@@ -344,12 +344,12 @@ func Avg(c Column) DynamicColumn {
 
 // IsNull returns a WhereCondition for 'IS NULL'.
 func (c BaseColumn) IsNull() WhereCondition {
-  return WhereCondition{Sql: c.String() + " IS NULL"}
+  return whereExpr{sql: c.String() + " IS NULL"}
 }
 
 // IsNotNull returns a WhereCondition for 'IS NOT NULL'.
 func (c BaseColumn) IsNotNull() WhereCondition {
-  return WhereCondition{Sql: c.String() + " IS NOT NULL"}
+  return whereExpr{sql: c.String() + " IS NOT NULL"}
 }
 
 // IsNil is an alias for IsNull.
@@ -364,117 +364,117 @@ func (c BaseColumn) NotNil() WhereCondition {
 
 // Eq returns a WhereCondition for '='.
 func (c ComparableColumn[T]) Eq(val T) WhereCondition {
-  return WhereCondition{Sql: c.String() + " = ?", Args: []any{val}}
+  return whereExpr{sql: c.String() + " = ?", args: []any{val}}
 }
 
 // EqCol returns a WhereCondition comparing this column to another column.
 func (c ComparableColumn[T]) EqCol(col Column) WhereCondition {
-  return WhereCondition{Sql: c.String() + " = " + col.String()}
+  return whereExpr{sql: c.String() + " = " + col.String()}
 }
 
 // EqPtr returns a WhereCondition for '='. If the provided pointer is nil,
 // it falls back to returning an 'IS NULL' condition.
 func (c ComparableColumn[T]) EqPtr(val *T) WhereCondition {
   if val == nil {
-    return WhereCondition{Sql: c.String() + " IS NULL"}
+    return whereExpr{sql: c.String() + " IS NULL"}
   }
-  return WhereCondition{Sql: c.String() + " = ?", Args: []any{*val}}
+  return whereExpr{sql: c.String() + " = ?", args: []any{*val}}
 }
 
 // Neq returns a WhereCondition for '!='.
 func (c ComparableColumn[T]) Neq(val T) WhereCondition {
-  return WhereCondition{Sql: c.String() + " != ?", Args: []any{val}}
+  return whereExpr{sql: c.String() + " != ?", args: []any{val}}
 }
 
 // NeqCol returns a WhereCondition comparing this column to another column.
 func (c ComparableColumn[T]) NeqCol(col Column) WhereCondition {
-  return WhereCondition{Sql: c.String() + " != " + col.String()}
+  return whereExpr{sql: c.String() + " != " + col.String()}
 }
 
 // NeqPtr returns a WhereCondition for '!='. If the provided pointer is nil,
 // it falls back to returning an 'IS NOT NULL' condition.
 func (c ComparableColumn[T]) NeqPtr(val *T) WhereCondition {
   if val == nil {
-    return WhereCondition{Sql: c.String() + " IS NOT NULL"}
+    return whereExpr{sql: c.String() + " IS NOT NULL"}
   }
-  return WhereCondition{Sql: c.String() + " != ?", Args: []any{*val}}
+  return whereExpr{sql: c.String() + " != ?", args: []any{*val}}
 }
 
 // In returns a WhereCondition for '= ANY()'.
 func (c ArrayableColumn[T]) In(vals ...T) WhereCondition {
   if len(vals) == 0 {
-    return WhereCondition{Sql: "1=0"}
+    return whereExpr{sql: "1=0"}
   }
-  return WhereCondition{Sql: c.String() + " = ANY(?)", Args: []any{vals}}
+  return whereExpr{sql: c.String() + " = ANY(?)", args: []any{vals}}
 }
 
 // NotIn returns a WhereCondition for '!= ALL()'.
 func (c ArrayableColumn[T]) NotIn(vals ...T) WhereCondition {
   if len(vals) == 0 {
-    return WhereCondition{Sql: "1=1"}
+    return whereExpr{sql: "1=1"}
   }
-  return WhereCondition{Sql: c.String() + " != ALL(?)", Args: []any{vals}}
+  return whereExpr{sql: c.String() + " != ALL(?)", args: []any{vals}}
 }
 
 // InQuery returns a WhereCondition for '? IN (subquery)'.
 func (c ArrayableColumn[T]) InQuery(val T, q SubQuery) WhereCondition {
-  return WhereCondition{Sql: "? IN", Args: []any{val}, Query: q}
+  return whereSubquery{sql: "? IN", args: []any{val}, query: q}
 }
 
 // NotInQuery returns a WhereCondition for '? NOT IN (subquery)'.
 func (c ArrayableColumn[T]) NotInQuery(val T, q SubQuery) WhereCondition {
-  return WhereCondition{Sql: "? NOT IN", Args: []any{val}, Query: q}
+  return whereSubquery{sql: "? NOT IN", args: []any{val}, query: q}
 }
 
 // Gt returns a WhereCondition for '>'.
 func (c OrderableColumn[T]) Gt(val T) WhereCondition {
-  return WhereCondition{Sql: c.String() + " > ?", Args: []any{val}}
+  return whereExpr{sql: c.String() + " > ?", args: []any{val}}
 }
 
 // Gte returns a WhereCondition for '>='.
 func (c OrderableColumn[T]) Gte(val T) WhereCondition {
-  return WhereCondition{Sql: c.String() + " >= ?", Args: []any{val}}
+  return whereExpr{sql: c.String() + " >= ?", args: []any{val}}
 }
 
 // Lt returns a WhereCondition for '<'.
 func (c OrderableColumn[T]) Lt(val T) WhereCondition {
-  return WhereCondition{Sql: c.String() + " < ?", Args: []any{val}}
+  return whereExpr{sql: c.String() + " < ?", args: []any{val}}
 }
 
 // Lte returns a WhereCondition for '<='.
 func (c OrderableColumn[T]) Lte(val T) WhereCondition {
-  return WhereCondition{Sql: c.String() + " <= ?", Args: []any{val}}
+  return whereExpr{sql: c.String() + " <= ?", args: []any{val}}
 }
 
 {{- if .Active.StringColumn }}
 // Like returns a WhereCondition for 'LIKE'.
 func (c StringColumn[T]) Like(val T) WhereCondition {
-  return WhereCondition{Sql: c.String() + " LIKE ?", Args: []any{val}}
+  return whereExpr{sql: c.String() + " LIKE ?", args: []any{val}}
 }
 
 // ILike returns a WhereCondition for 'ILIKE'.
 func (c StringColumn[T]) ILike(val T) WhereCondition {
-  return WhereCondition{Sql: c.String() + " ILIKE ?", Args: []any{val}}
+  return whereExpr{sql: c.String() + " ILIKE ?", args: []any{val}}
 }
 
 // StartsWith returns a WhereCondition for 'LIKE' with a right wildcard.
 func (c StringColumn[T]) StartsWith(val T) WhereCondition {
-  return WhereCondition{Sql: c.String() + " LIKE ?",
-    Args: []any{string(val) + "%"},
+  return whereExpr{sql: c.String() + " LIKE ?",
+    args: []any{string(val) + "%"},
   }
 }
 
 // EndsWith returns a WhereCondition for 'LIKE' with a left wildcard.
 func (c StringColumn[T]) EndsWith(val T) WhereCondition {
-  return WhereCondition{Sql: c.String() + " LIKE ?",
-    Args: []any{"%" + string(val)},
+  return whereExpr{sql: c.String() + " LIKE ?",
+    args: []any{"%" + string(val)},
   }
 }
 
 // Contains returns a WhereCondition for 'LIKE' with wildcards on both sides.
 func (c StringColumn[T]) Contains(val T) WhereCondition {
-  return WhereCondition{
-    Sql: c.String() + " LIKE ?", Args: []any{"%" + string(val) + "%"},
+  return whereExpr{
+    sql: c.String() + " LIKE ?", args: []any{"%" + string(val) + "%"},
   }
 }
 
@@ -491,15 +491,15 @@ func (c StringColumn[T]) HasSuffix(val T) WhereCondition {
 // ContainsFold returns a WhereCondition for case-insensitive 'ILIKE' with
 // wildcards on both sides.
 func (c StringColumn[T]) ContainsFold(val T) WhereCondition {
-  return WhereCondition{
-    Sql: c.String() + " ILIKE ?", Args: []any{"%" + string(val) + "%"},
+  return whereExpr{
+    sql: c.String() + " ILIKE ?", args: []any{"%" + string(val) + "%"},
   }
 }
 
 // EqualFold returns a WhereCondition for case-insensitive 'ILIKE'.
 func (c StringColumn[T]) EqualFold(val T) WhereCondition {
-  return WhereCondition{
-    Sql: c.String() + " ILIKE ?", Args: []any{val},
+  return whereExpr{
+    sql: c.String() + " ILIKE ?", args: []any{val},
   }
 }
 {{- end }}
@@ -507,83 +507,83 @@ func (c StringColumn[T]) EqualFold(val T) WhereCondition {
 {{- if .Active.JSONColumn }}
 // HasKey returns a WhereCondition for JSON '?'.
 func (c JSONColumn[T]) HasKey(key string) WhereCondition {
-  return WhereCondition{
-    Sql:  "jsonb_exists(" + c.String() + ", ?)",
-    Args: []any{key},
+  return whereExpr{
+    sql:  "jsonb_exists(" + c.String() + ", ?)",
+    args: []any{key},
   }
 }
 
 // HasAnyKey returns a WhereCondition for JSON '?|'.
 func (c JSONColumn[T]) HasAnyKey(keys ...string) WhereCondition {
-  return WhereCondition{
-    Sql:  "jsonb_exists_any(" + c.String() + ", ?)",
-    Args: []any{keys},
+  return whereExpr{
+    sql:  "jsonb_exists_any(" + c.String() + ", ?)",
+    args: []any{keys},
   }
 }
 
 // HasAllKeys returns a WhereCondition for JSON '?&'.
 func (c JSONColumn[T]) HasAllKeys(keys ...string) WhereCondition {
-  return WhereCondition{
-    Sql:  "jsonb_exists_all(" + c.String() + ", ?)",
-    Args: []any{keys},
+  return whereExpr{
+    sql:  "jsonb_exists_all(" + c.String() + ", ?)",
+    args: []any{keys},
   }
 }
 
 // Contains returns a WhereCondition for JSON '@>'.
 func (c JSONColumn[T]) Contains(val T) WhereCondition {
-  return WhereCondition{Sql: c.String() + " @> ?", Args: []any{val}}
+  return whereExpr{sql: c.String() + " @> ?", args: []any{val}}
 }
 
 // ContainedBy returns a WhereCondition for JSON '<@'.
 func (c JSONColumn[T]) ContainedBy(val T) WhereCondition {
-  return WhereCondition{Sql: c.String() + " <@ ?", Args: []any{val}}
+  return whereExpr{sql: c.String() + " <@ ?", args: []any{val}}
 }
 
 // LenEq returns a WhereCondition checking the length of a JSON array.
 func (c JSONColumn[T]) LenEq(length int) WhereCondition {
-  return WhereCondition{
-    Sql:  "jsonb_array_length(" + c.String() + ") = ?",
-    Args: []any{length},
+  return whereExpr{
+    sql:  "jsonb_array_length(" + c.String() + ") = ?",
+    args: []any{length},
   }
 }
 
 // LenNeq returns a WhereCondition checking the length of a JSON array.
 func (c JSONColumn[T]) LenNeq(length int) WhereCondition {
-  return WhereCondition{
-    Sql:  "jsonb_array_length(" + c.String() + ") != ?",
-    Args: []any{length},
+  return whereExpr{
+    sql:  "jsonb_array_length(" + c.String() + ") != ?",
+    args: []any{length},
   }
 }
 
 // LenGt returns a WhereCondition checking the length of a JSON array.
 func (c JSONColumn[T]) LenGt(length int) WhereCondition {
-  return WhereCondition{
-    Sql:  "jsonb_array_length(" + c.String() + ") > ?",
-    Args: []any{length},
+  return whereExpr{
+    sql:  "jsonb_array_length(" + c.String() + ") > ?",
+    args: []any{length},
   }
 }
 
 // LenLt returns a WhereCondition checking the length of a JSON array.
 func (c JSONColumn[T]) LenLt(length int) WhereCondition {
-  return WhereCondition{
-    Sql:  "jsonb_array_length(" + c.String() + ") < ?",
-    Args: []any{length},
+  return whereExpr{
+    sql:  "jsonb_array_length(" + c.String() + ") < ?",
+    args: []any{length},
   }
 }
 
 // LenGte returns a WhereCondition checking the length of a JSON array.
 func (c JSONColumn[T]) LenGte(length int) WhereCondition {
-  return WhereCondition{
-    Sql:  "jsonb_array_length(" + c.String() + ") >= ?",
-    Args: []any{length},
+  return whereExpr{
+    sql:  "jsonb_array_length(" + c.String() + ") >= ?",
+    args: []any{length},
   }
 }
 
 // LenLte returns a WhereCondition checking the length of a JSON array.
 func (c JSONColumn[T]) LenLte(length int) WhereCondition {
-  return WhereCondition{
-    Sql:  "jsonb_array_length(" + c.String() + ") <= ?",
-    Args: []any{length},
+  return whereExpr{
+    sql:  "jsonb_array_length(" + c.String() + ") <= ?",
+    args: []any{length},
   }
 }
 
@@ -604,9 +604,9 @@ func (c JSONColumn[T]) buildPath(path []string) (string, []any) {
 func (c JSONColumn[T]) PathEq(path []string, val any) WhereCondition {
   b, _ := json.Marshal(val)
   sql, args := c.buildPath(path)
-  return WhereCondition{
-    Sql:  sql + " = ?::jsonb",
-    Args: append(args, string(b)),
+  return whereExpr{
+    sql:  sql + " = ?::jsonb",
+    args: append(args, string(b)),
   }
 }
 
@@ -614,9 +614,9 @@ func (c JSONColumn[T]) PathEq(path []string, val any) WhereCondition {
 func (c JSONColumn[T]) PathNeq(path []string, val any) WhereCondition {
   b, _ := json.Marshal(val)
   sql, args := c.buildPath(path)
-  return WhereCondition{
-    Sql:  sql + " != ?::jsonb",
-    Args: append(args, string(b)),
+  return whereExpr{
+    sql:  sql + " != ?::jsonb",
+    args: append(args, string(b)),
   }
 }
 
@@ -624,9 +624,9 @@ func (c JSONColumn[T]) PathNeq(path []string, val any) WhereCondition {
 func (c JSONColumn[T]) PathGt(path []string, val any) WhereCondition {
   b, _ := json.Marshal(val)
   sql, args := c.buildPath(path)
-  return WhereCondition{
-    Sql:  sql + " > ?::jsonb",
-    Args: append(args, string(b)),
+  return whereExpr{
+    sql:  sql + " > ?::jsonb",
+    args: append(args, string(b)),
   }
 }
 
@@ -634,9 +634,9 @@ func (c JSONColumn[T]) PathGt(path []string, val any) WhereCondition {
 func (c JSONColumn[T]) PathLt(path []string, val any) WhereCondition {
   b, _ := json.Marshal(val)
   sql, args := c.buildPath(path)
-  return WhereCondition{
-    Sql:  sql + " < ?::jsonb",
-    Args: append(args, string(b)),
+  return whereExpr{
+    sql:  sql + " < ?::jsonb",
+    args: append(args, string(b)),
   }
 }
 
@@ -644,9 +644,9 @@ func (c JSONColumn[T]) PathLt(path []string, val any) WhereCondition {
 func (c JSONColumn[T]) PathGte(path []string, val any) WhereCondition {
   b, _ := json.Marshal(val)
   sql, args := c.buildPath(path)
-  return WhereCondition{
-    Sql:  sql + " >= ?::jsonb",
-    Args: append(args, string(b)),
+  return whereExpr{
+    sql:  sql + " >= ?::jsonb",
+    args: append(args, string(b)),
   }
 }
 
@@ -654,9 +654,9 @@ func (c JSONColumn[T]) PathGte(path []string, val any) WhereCondition {
 func (c JSONColumn[T]) PathLte(path []string, val any) WhereCondition {
   b, _ := json.Marshal(val)
   sql, args := c.buildPath(path)
-  return WhereCondition{
-    Sql:  sql + " <= ?::jsonb",
-    Args: append(args, string(b)),
+  return whereExpr{
+    sql:  sql + " <= ?::jsonb",
+    args: append(args, string(b)),
   }
 }
 
@@ -664,9 +664,9 @@ func (c JSONColumn[T]) PathLte(path []string, val any) WhereCondition {
 func (c JSONColumn[T]) PathContains(path []string, val any) WhereCondition {
   b, _ := json.Marshal(val)
   sql, args := c.buildPath(path)
-  return WhereCondition{
-    Sql:  sql + " @> ?::jsonb",
-    Args: append(args, string(b)),
+  return whereExpr{
+    sql:  sql + " @> ?::jsonb",
+    args: append(args, string(b)),
   }
 }
 
@@ -674,18 +674,18 @@ func (c JSONColumn[T]) PathContains(path []string, val any) WhereCondition {
 // 'null'.
 func (c JSONColumn[T]) PathIsNull(path []string) WhereCondition {
   sql, args := c.buildPath(path)
-  return WhereCondition{
-    Sql:  "(" + sql + " IS NULL OR " + sql + " = 'null'::jsonb)",
-    Args: append(args, args...),
+  return whereExpr{
+    sql:  "(" + sql + " IS NULL OR " + sql + " = 'null'::jsonb)",
+    args: append(args, args...),
   }
 }
 
 // PathIsNotNull checks if the nested JSON path exists and is not JSON 'null'.
 func (c JSONColumn[T]) PathIsNotNull(path []string) WhereCondition {
   sql, args := c.buildPath(path)
-  return WhereCondition{
-    Sql:  "(" + sql + " IS NOT NULL AND " + sql + " != 'null'::jsonb)",
-    Args: append(args, args...),
+  return whereExpr{
+    sql:  "(" + sql + " IS NOT NULL AND " + sql + " != 'null'::jsonb)",
+    args: append(args, args...),
   }
 }
 {{- end }}
@@ -693,171 +693,201 @@ func (c JSONColumn[T]) PathIsNotNull(path []string) WhereCondition {
 {{- if .Active.ArrayColumn }}
 // Contains returns a WhereCondition for Array '@>'.
 func (c ArrayColumn[T]) Contains(val T) WhereCondition {
-  return WhereCondition{Sql: c.String() + " @> ?", Args: []any{val}}
+  return whereExpr{sql: c.String() + " @> ?", args: []any{val}}
 }
 
 // ContainedBy returns a WhereCondition for Array '<@'.
 func (c ArrayColumn[T]) ContainedBy(val T) WhereCondition {
-  return WhereCondition{Sql: c.String() + " <@ ?", Args: []any{val}}
+  return whereExpr{sql: c.String() + " <@ ?", args: []any{val}}
 }
 
 // Overlaps returns a WhereCondition for Array '&&'.
 func (c ArrayColumn[T]) Overlaps(val T) WhereCondition {
-  return WhereCondition{Sql: c.String() + " && ?", Args: []any{val}}
+  return whereExpr{sql: c.String() + " && ?", args: []any{val}}
 }
 {{- end }}
 
 {{- if .Active.RangeColumn }}
 // Contains returns a WhereCondition for Range '@>'.
 func (c RangeColumn[T]) Contains(val T) WhereCondition {
-  return WhereCondition{Sql: c.String() + " @> ?", Args: []any{val}}
+  return whereExpr{sql: c.String() + " @> ?", args: []any{val}}
 }
 
 // ContainsElement returns a WhereCondition for Range '@>' with a single
 // element.
 func (c RangeColumn[T]) ContainsElement(val any) WhereCondition {
-  return WhereCondition{Sql: c.String() + " @> ?", Args: []any{val}}
+  return whereExpr{sql: c.String() + " @> ?", args: []any{val}}
 }
 
 // ContainedBy returns a WhereCondition for Range '<@'.
 func (c RangeColumn[T]) ContainedBy(val T) WhereCondition {
-  return WhereCondition{Sql: c.String() + " <@ ?", Args: []any{val}}
+  return whereExpr{sql: c.String() + " <@ ?", args: []any{val}}
 }
 
 // Overlaps returns a WhereCondition for Range '&&'.
 func (c RangeColumn[T]) Overlaps(val T) WhereCondition {
-  return WhereCondition{Sql: c.String() + " && ?", Args: []any{val}}
+  return whereExpr{sql: c.String() + " && ?", args: []any{val}}
 }
 
 // StrictlyLeftOf returns a WhereCondition for Range '<<'.
 func (c RangeColumn[T]) StrictlyLeftOf(val T) WhereCondition {
-  return WhereCondition{Sql: c.String() + " << ?", Args: []any{val}}
+  return whereExpr{sql: c.String() + " << ?", args: []any{val}}
 }
 
 // StrictlyRightOf returns a WhereCondition for Range '>>'.
 func (c RangeColumn[T]) StrictlyRightOf(val T) WhereCondition {
-  return WhereCondition{Sql: c.String() + " >> ?", Args: []any{val}}
+  return whereExpr{sql: c.String() + " >> ?", args: []any{val}}
 }
 
 // DoesNotExtendToRightOf returns a WhereCondition for Range '&<'.
 func (c RangeColumn[T]) DoesNotExtendToRightOf(val T) WhereCondition {
-  return WhereCondition{Sql: c.String() + " &< ?", Args: []any{val}}
+  return whereExpr{sql: c.String() + " &< ?", args: []any{val}}
 }
 
 // DoesNotExtendToLeftOf returns a WhereCondition for Range '&>'.
 func (c RangeColumn[T]) DoesNotExtendToLeftOf(val T) WhereCondition {
-  return WhereCondition{Sql: c.String() + " &> ?", Args: []any{val}}
+  return whereExpr{sql: c.String() + " &> ?", args: []any{val}}
 }
 
 // IsAdjacentTo returns a WhereCondition for Range '-|-'.
 func (c RangeColumn[T]) IsAdjacentTo(val T) WhereCondition {
-  return WhereCondition{Sql: c.String() + " -|- ?", Args: []any{val}}
+  return whereExpr{sql: c.String() + " -|- ?", args: []any{val}}
 }
 {{- end }}
 
 {{- if .Active.GeometricColumn }}
 // StrictlyLeftOf returns a WhereCondition for Geometric '<<'.
 func (c GeometricColumn[T]) StrictlyLeftOf(val T) WhereCondition {
-  return WhereCondition{Sql: c.String() + " << ?", Args: []any{val}}
+  return whereExpr{sql: c.String() + " << ?", args: []any{val}}
 }
 
 // StrictlyRightOf returns a WhereCondition for Geometric '>>'.
 func (c GeometricColumn[T]) StrictlyRightOf(val T) WhereCondition {
-  return WhereCondition{Sql: c.String() + " >> ?", Args: []any{val}}
+  return whereExpr{sql: c.String() + " >> ?", args: []any{val}}
 }
 
 // StrictlyBelow returns a WhereCondition for Geometric '<<|'.
 func (c GeometricColumn[T]) StrictlyBelow(val T) WhereCondition {
-  return WhereCondition{Sql: c.String() + " <<| ?", Args: []any{val}}
+  return whereExpr{sql: c.String() + " <<| ?", args: []any{val}}
 }
 
 // StrictlyAbove returns a WhereCondition for Geometric '|>>'.
 func (c GeometricColumn[T]) StrictlyAbove(val T) WhereCondition {
-  return WhereCondition{Sql: c.String() + " |>> ?", Args: []any{val}}
+  return whereExpr{sql: c.String() + " |>> ?", args: []any{val}}
 }
 
 // DoesNotExtendToRightOf returns a WhereCondition for Geometric '&<'.
 func (c GeometricColumn[T]) DoesNotExtendToRightOf(val T) WhereCondition {
-  return WhereCondition{Sql: c.String() + " &< ?", Args: []any{val}}
+  return whereExpr{sql: c.String() + " &< ?", args: []any{val}}
 }
 
 // DoesNotExtendToLeftOf returns a WhereCondition for Geometric '&>'.
 func (c GeometricColumn[T]) DoesNotExtendToLeftOf(val T) WhereCondition {
-  return WhereCondition{Sql: c.String() + " &> ?", Args: []any{val}}
+  return whereExpr{sql: c.String() + " &> ?", args: []any{val}}
 }
 
 // DoesNotExtendAbove returns a WhereCondition for Geometric '&<|'.
 func (c GeometricColumn[T]) DoesNotExtendAbove(val T) WhereCondition {
-  return WhereCondition{Sql: c.String() + " &<| ?", Args: []any{val}}
+  return whereExpr{sql: c.String() + " &<| ?", args: []any{val}}
 }
 
 // DoesNotExtendBelow returns a WhereCondition for Geometric '|&>'.
 func (c GeometricColumn[T]) DoesNotExtendBelow(val T) WhereCondition {
-  return WhereCondition{Sql: c.String() + " |&> ?", Args: []any{val}}
+  return whereExpr{sql: c.String() + " |&> ?", args: []any{val}}
 }
 
 // Overlaps returns a WhereCondition for Geometric '&&'.
 func (c GeometricColumn[T]) Overlaps(val T) WhereCondition {
-  return WhereCondition{Sql: c.String() + " && ?", Args: []any{val}}
+  return whereExpr{sql: c.String() + " && ?", args: []any{val}}
 }
 
 // Contains returns a WhereCondition for Geometric '@>'.
 func (c GeometricColumn[T]) Contains(val T) WhereCondition {
-  return WhereCondition{Sql: c.String() + " @> ?", Args: []any{val}}
+  return whereExpr{sql: c.String() + " @> ?", args: []any{val}}
 }
 
 // ContainedBy returns a WhereCondition for Geometric '<@'.
 func (c GeometricColumn[T]) ContainedBy(val T) WhereCondition {
-  return WhereCondition{Sql: c.String() + " <@ ?", Args: []any{val}}
+  return whereExpr{sql: c.String() + " <@ ?", args: []any{val}}
 }
 
 // SameAs returns a WhereCondition for Geometric '~='.
 func (c GeometricColumn[T]) SameAs(val T) WhereCondition {
-  return WhereCondition{Sql: c.String() + " ~= ?", Args: []any{val}}
+  return whereExpr{sql: c.String() + " ~= ?", args: []any{val}}
 }
 {{- end }}
 
 {{- if .Active.NetworkAddressColumn }}
 // Contains returns a WhereCondition for NetworkAddress '>>'.
 func (c NetworkAddressColumn[T]) Contains(val T) WhereCondition {
-  return WhereCondition{Sql: c.String() + " >> ?", Args: []any{val}}
+  return whereExpr{sql: c.String() + " >> ?", args: []any{val}}
 }
 
 // ContainsOrEquals returns a WhereCondition for NetworkAddress '>>='.
 func (c NetworkAddressColumn[T]) ContainsOrEquals(val T) WhereCondition {
-  return WhereCondition{Sql: c.String() + " >>= ?", Args: []any{val}}
+  return whereExpr{sql: c.String() + " >>= ?", args: []any{val}}
 }
 
 // ContainedBy returns a WhereCondition for NetworkAddress '<<'.
 func (c NetworkAddressColumn[T]) ContainedBy(val T) WhereCondition {
-  return WhereCondition{Sql: c.String() + " << ?", Args: []any{val}}
+  return whereExpr{sql: c.String() + " << ?", args: []any{val}}
 }
 
 // ContainedByOrEquals returns a WhereCondition for NetworkAddress '<<='.
 func (c NetworkAddressColumn[T]) ContainedByOrEquals(val T) WhereCondition {
-  return WhereCondition{Sql: c.String() + " <<= ?", Args: []any{val}}
+  return whereExpr{sql: c.String() + " <<= ?", args: []any{val}}
 }
 
 // ContainsOrIsContainedBy returns a WhereCondition for NetworkAddress '&&'.
 func (c NetworkAddressColumn[T]) ContainsOrIsContainedBy(val T) WhereCondition {
-  return WhereCondition{Sql: c.String() + " && ?", Args: []any{val}}
+  return whereExpr{sql: c.String() + " && ?", args: []any{val}}
 }
 {{- end }}
 
 {{- if .Active.BitStringColumn }}
 // Contains returns a WhereCondition for BitString '>>'.
 func (c BitStringColumn[T]) Contains(val T) WhereCondition {
-  return WhereCondition{Sql: c.String() + " >> ?", Args: []any{val}}
+  return whereExpr{sql: c.String() + " >> ?", args: []any{val}}
 }
 
 // ContainedBy returns a WhereCondition for BitString '<<'.
 func (c BitStringColumn[T]) ContainedBy(val T) WhereCondition {
-  return WhereCondition{Sql: c.String() + " << ?", Args: []any{val}}
+  return whereExpr{sql: c.String() + " << ?", args: []any{val}}
 }
 
 // Overlaps returns a WhereCondition for BitString '&&'.
 func (c BitStringColumn[T]) Overlaps(val T) WhereCondition {
-  return WhereCondition{Sql: c.String() + " && ?", Args: []any{val}}
+  return whereExpr{sql: c.String() + " && ?", args: []any{val}}
 }
 {{- end }}
 
+
+// Asc returns an OrderCondition for ASC direction.
+func (c BaseColumn) Asc() OrderCondition {
+  return orderExpr{col: c.String(), dir: OrderAsc}
+}
+
+// Desc returns an OrderCondition for DESC direction.
+func (c BaseColumn) Desc() OrderCondition {
+  return orderExpr{col: c.String(), dir: OrderDesc}
+}
+
+// AscNullsFirst returns an OrderCondition for ASC NULLS FIRST direction.
+func (c BaseColumn) AscNullsFirst() OrderCondition {
+  return orderExpr{col: c.String(), dir: OrderAscNullsFirst}
+}
+
+// DescNullsFirst returns an OrderCondition for DESC NULLS FIRST direction.
+func (c BaseColumn) DescNullsFirst() OrderCondition {
+  return orderExpr{col: c.String(), dir: OrderDescNullsFirst}
+}
+
+// AscNullsLast returns an OrderCondition for ASC NULLS LAST direction.
+func (c BaseColumn) AscNullsLast() OrderCondition {
+  return orderExpr{col: c.String(), dir: OrderAscNullsLast}
+}
+
+// DescNullsLast returns an OrderCondition for DESC NULLS LAST direction.
+func (c BaseColumn) DescNullsLast() OrderCondition {
+  return orderExpr{col: c.String(), dir: OrderDescNullsLast}
+}

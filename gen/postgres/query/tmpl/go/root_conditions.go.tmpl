@@ -1,104 +1,208 @@
-type WhereCondition struct {
-  Sql   string
-  Args  []any
-  Query SubQuery
-  IsOr  bool
-  IsNot bool
-  Group []WhereCondition
+// WhereCondition represents a condition in a WHERE clause.
+type WhereCondition interface {
+  BuildWhereSQL(paramIdx *int) (string, []any, error)
 }
 
-func And(conds ...WhereCondition) WhereCondition {
-  return WhereCondition{Group: conds, IsOr: false}
+type whereExpr struct {
+  sql  string
+  args []any
 }
 
-func Or(conds ...WhereCondition) WhereCondition {
-  return WhereCondition{Group: conds, IsOr: true}
-}
-
-func Not(conds ...WhereCondition) WhereCondition {
-  return WhereCondition{Group: conds, IsNot: true}
-}
-
-// Exists returns a WhereCondition for 'EXISTS (subquery)'.
-func Exists(q SubQuery) WhereCondition {
-  return WhereCondition{Sql: "EXISTS", Query: q}
-}
-
-// NotExists returns a WhereCondition for 'NOT EXISTS (subquery)'.
-func NotExists(q SubQuery) WhereCondition {
-  return WhereCondition{Sql: "NOT EXISTS", Query: q}
-}
-
-func BuildConditions(
-  conds []WhereCondition, paramIdx *int,
-) (string, []any, error) {
-  return buildConditions(conds, paramIdx, false)
-}
-
-func buildConditions(
-  conds []WhereCondition, paramIdx *int, isOr bool,
-) (string, []any, error) {
-  if len(conds) == 0 {
-    return "", nil, nil
-  }
+func (w whereExpr) BuildWhereSQL(paramIdx *int) (string, []any, error) {
   var query strings.Builder
   var args []any
   var numBuf [20]byte
 
-  for i, cond := range conds {
+  parts := strings.Split(w.sql, "?")
+  for j, part := range parts {
+    query.WriteString(part)
+    if j < len(parts)-1 && j < len(w.args) {
+      query.WriteString("$")
+      query.Write(strconv.AppendInt(numBuf[:0], int64(*paramIdx), 10))
+      args = append(args, w.args[j])
+      *paramIdx++
+    }
+  }
+  return query.String(), args, nil
+}
+
+type whereSubquery struct {
+  sql   string
+  args  []any
+  query SubQuery
+}
+
+func (w whereSubquery) BuildWhereSQL(paramIdx *int) (string, []any, error) {
+  var query strings.Builder
+  var args []any
+  var numBuf [20]byte
+
+  parts := strings.Split(w.sql, "?")
+  for j, part := range parts {
+    query.WriteString(part)
+    if j < len(parts)-1 && j < len(w.args) {
+      query.WriteString("$")
+      query.Write(strconv.AppendInt(numBuf[:0], int64(*paramIdx), 10))
+      args = append(args, w.args[j])
+      *paramIdx++
+    }
+  }
+  query.WriteString(" (")
+  subSQL, subArgs, err := w.query.ToSelectSQL(*paramIdx, false)
+  if err != nil {
+    return "", nil, err
+  }
+  query.WriteString(subSQL)
+  query.WriteString(")")
+  args = append(args, subArgs...)
+  *paramIdx += len(subArgs)
+
+  return query.String(), args, nil
+}
+
+type whereGroup struct {
+  conds []WhereCondition
+  isOr  bool
+  isNot bool
+}
+
+func (w whereGroup) BuildWhereSQL(paramIdx *int) (string, []any, error) {
+  var query strings.Builder
+  var args []any
+
+  validConds := make([]WhereCondition, 0, len(w.conds))
+  for _, c := range w.conds {
+    if c != nil {
+      validConds = append(validConds, c)
+    }
+  }
+
+  if len(validConds) == 0 {
+    return "", nil, nil
+  }
+
+  if w.isNot {
+    query.WriteString("NOT ")
+  }
+
+  query.WriteString("(")
+  for i, cond := range validConds {
     if i > 0 {
-      if isOr {
+      if w.isOr {
         query.WriteString(" OR ")
       } else {
         query.WriteString(" AND ")
       }
     }
 
-    if cond.IsNot {
-      query.WriteString("NOT ")
+    cSQL, cArgs, err := cond.BuildWhereSQL(paramIdx)
+    if err != nil {
+      return "", nil, err
     }
+    query.WriteString(cSQL)
+    args = append(args, cArgs...)
+  }
+  query.WriteString(")")
 
-    if len(cond.Group) > 0 {
-      query.WriteString("(")
-      gSQL, gArgs, err := buildConditions(cond.Group, paramIdx, cond.IsOr)
-      if err != nil {
-        return "", nil, err
-      }
-      query.WriteString(gSQL)
-      query.WriteString(")")
-      args = append(args, gArgs...)
-    } else if cond.Query != nil {
-      parts := strings.Split(cond.Sql, "?")
-      for j, part := range parts {
-        query.WriteString(part)
-        if j < len(parts)-1 && j < len(cond.Args) {
-          query.WriteString("$")
-          query.Write(strconv.AppendInt(numBuf[:0], int64(*paramIdx), 10))
-          args = append(args, cond.Args[j])
-          *paramIdx++
-        }
-      }
-      query.WriteString(" (")
-      subSQL, subArgs, err := cond.Query.ToSelectSQL(*paramIdx, false)
-      if err != nil {
-        return "", nil, err
-      }
-      query.WriteString(subSQL)
-      query.WriteString(")")
-      args = append(args, subArgs...)
-      *paramIdx += len(subArgs)
-    } else {
-      parts := strings.Split(cond.Sql, "?")
-      for j, part := range parts {
-        query.WriteString(part)
-        if j < len(parts)-1 && j < len(cond.Args) {
-          query.WriteString("$")
-          query.Write(strconv.AppendInt(numBuf[:0], int64(*paramIdx), 10))
-          args = append(args, cond.Args[j])
-          *paramIdx++
-        }
-      }
+  return query.String(), args, nil
+}
+
+func And(conds ...WhereCondition) WhereCondition {
+  return whereGroup{conds: conds, isOr: false}
+}
+
+func Or(conds ...WhereCondition) WhereCondition {
+  return whereGroup{conds: conds, isOr: true}
+}
+
+func Not(conds ...WhereCondition) WhereCondition {
+  return whereGroup{conds: conds, isNot: true}
+}
+
+// Exists returns a WhereCondition for 'EXISTS (subquery)'.
+func Exists(q SubQuery) WhereCondition {
+  return whereSubquery{sql: "EXISTS", query: q}
+}
+
+// NotExists returns a WhereCondition for 'NOT EXISTS (subquery)'.
+func NotExists(q SubQuery) WhereCondition {
+  return whereSubquery{sql: "NOT EXISTS", query: q}
+}
+
+func BuildConditions(
+  conds []WhereCondition, paramIdx *int,
+) (string, []any, error) {
+  if len(conds) == 0 {
+    return "", nil, nil
+  }
+  var query strings.Builder
+  var args []any
+
+  validConds := make([]WhereCondition, 0, len(conds))
+  for _, c := range conds {
+    if c != nil {
+      validConds = append(validConds, c)
     }
   }
+
+  if len(validConds) == 0 {
+    return "", nil, nil
+  }
+
+  for i, cond := range validConds {
+    if i > 0 {
+      query.WriteString(" AND ")
+    }
+    cSQL, cArgs, err := cond.BuildWhereSQL(paramIdx)
+    if err != nil {
+      return "", nil, err
+    }
+    query.WriteString(cSQL)
+    args = append(args, cArgs...)
+  }
   return query.String(), args, nil
+}
+
+// OrderCondition represents a condition in an ORDER BY clause.
+type OrderCondition interface {
+  BuildOrderSQL(paramIdx *int) (string, []any, error)
+}
+
+type orderExpr struct {
+  col string
+  dir OrderDirection
+}
+
+func (o orderExpr) BuildOrderSQL(paramIdx *int) (string, []any, error) {
+  return o.col + " " + string(o.dir), nil, nil
+}
+
+type orderSubquery struct {
+  query SubQuery
+  dir   OrderDirection
+}
+
+func (o orderSubquery) BuildOrderSQL(paramIdx *int) (string, []any, error) {
+  var query strings.Builder
+  query.WriteString("(")
+  subSQL, subArgs, err := o.query.ToSelectSQL(*paramIdx, false)
+  if err != nil {
+    return "", nil, err
+  }
+  query.WriteString(subSQL)
+  query.WriteString(") ")
+  query.WriteString(string(o.dir))
+  
+  *paramIdx += len(subArgs)
+  return query.String(), subArgs, nil
+}
+
+// OrderSubQuery returns an OrderCondition for a subquery sort direction.
+func OrderSubQuery(q SubQuery, dir OrderDirection) OrderCondition {
+  return orderSubquery{query: q, dir: dir}
+}
+
+// Expr returns a WhereCondition from a raw SQL string and arguments.
+func Expr(sql string, args ...any) WhereCondition {
+  return whereExpr{sql: sql, args: args}
 }

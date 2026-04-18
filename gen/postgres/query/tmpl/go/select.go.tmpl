@@ -115,21 +115,12 @@ func (q *{{ $modelName }}Query) ToSelectSQL(
       if i > 0 {
         query.WriteString(", ")
       }
-      if ob.Query != nil {
-        query.WriteString("(")
-        subSQL, subArgs, err := ob.Query.ToSelectSQL(paramIdx, false)
-        if err != nil {
-          return "", nil, err
-        }
-        query.WriteString(subSQL)
-        query.WriteString(") ")
-        args = append(args, subArgs...)
-        paramIdx += len(subArgs)
-      } else {
-        query.WriteString(ob.Column)
-        query.WriteString(" ")
+      obSQL, obArgs, err := ob.BuildOrderSQL(&paramIdx)
+      if err != nil {
+        return "", nil, err
       }
-      query.WriteString(string(ob.Direction))
+      query.WriteString(obSQL)
+      args = append(args, obArgs...)
     }
   }
 
