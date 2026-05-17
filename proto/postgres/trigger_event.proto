@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package postgres;
+
+// TriggerEvent specifies the database operation that causes a trigger to fire.
+enum TriggerEvent {
+  // Unspecified trigger event.
+  TRIGGER_EVENT_UNSPECIFIED = 0;
+
+  // The trigger fires upon an INSERT operation.
+  TRIGGER_EVENT_INSERT = 1;
+
+  // The trigger fires upon an UPDATE operation.
+  TRIGGER_EVENT_UPDATE = 2;
+
+  // The trigger fires upon a DELETE operation.
+  TRIGGER_EVENT_DELETE = 3;
+
+  // The trigger fires upon a TRUNCATE operation.
+  TRIGGER_EVENT_TRUNCATE = 4;
+}

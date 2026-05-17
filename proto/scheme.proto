@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package scheme;
+
+import "core/database.proto";
+import "go_language.proto";
+
+// Scheme acts as the absolute root definition for your application's data
+// infrastructure. A single Scheme file can configure a database
+// cluster, schemas, tables, cross-database linkages, and relationships.
+message Scheme {
+  // A single logically isolated database tracked within the Scheme.
+  core.Database database = 1;
+
+  // Language-specific configuration options for Go.
+  GoLanguage go = 2;
+}

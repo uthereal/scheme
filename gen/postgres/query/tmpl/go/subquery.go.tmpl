@@ -1,0 +1,182 @@
+{{- /* gotype: github.com/uthereal/scheme/gen/postgres/ast.ModelGo */ -}}
+
+{{- $modelNameExported := .Name }}
+{{- $modelNamePrivate := .StructNamePrivate }}
+
+// {{ $modelNameExported }}SubQuery represents a strongly typed sub-query
+// builder for the {{ .TableFullName }} table.
+type {{ $modelNameExported }}SubQuery struct {
+  state postgres.QueryState
+}
+
+// As aliases the table for this query.
+func (q *{{ $modelNameExported }}SubQuery) As(
+  alias string,
+) *{{ $modelNameExported }}SubQuery {
+  clone := *q
+  clone.state = q.state.WithAlias(alias)
+  return &clone
+}
+
+// Select specifies the exact columns to retrieve from the database.
+func (q *{{ $modelNameExported }}SubQuery) Select(
+  cols ... postgres.Column,
+) *{{ $modelNameExported }}SubQuery {
+  clone := *q
+  clone.state = q.state.WithSelects(cols...)
+  return &clone
+}
+
+// Where applies one or more conditional constraints to the query.
+func (q *{{ $modelNameExported }}SubQuery) Where(
+  conds ... postgres.WhereCondition,
+) *{{ $modelNameExported }}SubQuery {
+  clone := *q
+  clone.state = q.state.WithWheres(conds...)
+  return &clone
+}
+
+// GroupBy specifies the columns to use for grouping the result set.
+func (q *{{ $modelNameExported }}SubQuery) GroupBy(
+  cols ... postgres.Column,
+) *{{ $modelNameExported }}SubQuery {
+  clone := *q
+  clone.state = q.state.WithGroupBys(cols...)
+  return &clone
+}
+
+// Having applies one or more conditional constraints to grouped records.
+func (q *{{ $modelNameExported }}SubQuery) Having(
+  conds ... postgres.WhereCondition,
+) *{{ $modelNameExported }}SubQuery {
+  clone := *q
+  clone.state = q.state.WithHavings(conds...)
+  return &clone
+}
+
+// OrderBy applies a sorting constraint to the query.
+func (q *{{ $modelNameExported }}SubQuery) OrderBy(
+  conds ... postgres.OrderCondition,
+) *{{ $modelNameExported }}SubQuery {
+  clone := *q
+  clone.state = q.state.WithOrderBys(conds...)
+  return &clone
+}
+
+// Limit sets the maximum number of records to return.
+func (q *{{ $modelNameExported }}SubQuery) Limit(
+  limit int,
+) *{{ $modelNameExported }}SubQuery {
+  clone := *q
+  clone.state = q.state.WithLimit(limit)
+  return &clone
+}
+
+// Offset sets the number of records to skip before starting to return results.
+func (q *{{ $modelNameExported }}SubQuery) Offset(
+  offset int,
+) *{{ $modelNameExported }}SubQuery {
+  clone := *q
+  clone.state = q.state.WithOffset(offset)
+  return &clone
+}
+
+{{- $modelName := .Name }}
+
+// buildColumnMappers constructs the SELECT clause and closure mappers for the 
+// given columns.
+func (q *{{ $modelName }}SubQuery) buildColumnMappers(
+  cols []postgres.Column,
+) (string, []func(*{{ $modelName }}, []any, int), error) {
+  if len(cols) == 0 {
+    cols = []postgres.Column{
+      {{- range .Fields }}
+        {{ $modelName }}Columns.{{ .Name }},
+      {{- end }}
+    }
+  }
+
+  colStr, rawNames, err := postgres.BuildSelectString(cols)
+  if err != nil {
+    return "", nil, err
+  }
+
+  colMappers := make([]func(*{{ $modelName }}, []any, int), len(cols))
+  for i, colName := range rawNames {
+    switch colName {
+    {{- range .Fields }}
+    case "{{ .ColumnName }}":
+      colMappers[i] = func(row *{{ $modelName }}, ptrs []any, idx int) {
+        ptrs[idx] = &row.{{ .Name }}
+      }
+    {{- end }}
+    default:
+      return "", nil, fmt.Errorf("unknown column -> %s", cols[i].String())
+    }
+  }
+
+  return colStr, colMappers, nil
+}
+
+// ToSelectSQL builds the complete parameterized SELECT SQL statement 
+// and its arguments.
+func (q *{{ $modelName }}SubQuery) ToSelectSQL(
+  startParamIdx int, withCount bool,
+) (string, []any, error) {
+  colStr, _, err := q.buildColumnMappers(q.state.Selects)
+  if err != nil {
+    return "", nil, err
+  }
+
+  return postgres.BuildSelectSQL(
+    q.state, colStr, `{{ .TableFullName }}`, startParamIdx, withCount,
+  )
+}
+
+// Asc returns an OrderCondition for ASC direction.
+func (q *{{ $modelNameExported }}SubQuery) Asc() postgres.OrderCondition {
+  return postgres.OrderSubQuery(q, postgres.OrderAsc)
+}
+
+// Desc returns an OrderCondition for DESC direction.
+func (q *{{ $modelNameExported }}SubQuery) Desc() postgres.OrderCondition {
+  return postgres.OrderSubQuery(q, postgres.OrderDesc)
+}
+
+// AscNullsFirst returns an OrderCondition for ASC NULLS FIRST direction.
+func (q *{{ $modelNameExported }}SubQuery) AscNullsFirst() (
+  postgres.OrderCondition,
+) {
+  return postgres.OrderSubQuery(q, postgres.OrderAscNullsFirst)
+}
+
+// DescNullsFirst returns an OrderCondition for DESC NULLS FIRST direction.
+func (q *{{ $modelNameExported }}SubQuery) DescNullsFirst() (
+  postgres.OrderCondition,
+) {
+  return postgres.OrderSubQuery(q, postgres.OrderDescNullsFirst)
+}
+
+// AscNullsLast returns an OrderCondition for ASC NULLS LAST direction.
+func (q *{{ $modelNameExported }}SubQuery) AscNullsLast() (
+  postgres.OrderCondition,
+) {
+  return postgres.OrderSubQuery(q, postgres.OrderAscNullsLast)
+}
+
+// DescNullsLast returns an OrderCondition for DESC NULLS LAST direction.
+func (q *{{ $modelNameExported }}SubQuery) DescNullsLast() (
+  postgres.OrderCondition,
+) {
+  return postgres.OrderSubQuery(q, postgres.OrderDescNullsLast)
+}
+
+// Exists returns a postgres.WhereCondition for 'EXISTS (subquery)'.
+func (q *{{ $modelNameExported }}SubQuery) Exists() postgres.WhereCondition {
+  return postgres.Exists(q)
+}
+
+// NotExists returns a postgres.WhereCondition for 'NOT EXISTS (subquery)'.
+func (q *{{ $modelNameExported }}SubQuery) NotExists() postgres.WhereCondition {
+  return postgres.NotExists(q)
+}

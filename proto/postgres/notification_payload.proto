@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package postgres;
+
+import "postgres/data_type.proto";
+import "core/shared/table_reference.proto";
+import "postgres/empty_payload.proto";
+import "postgres/json_payload.proto";
+
+// NotificationPayload defines the shape of the data sent over the channel.
+message NotificationPayload {
+  oneof payload {
+    // An empty payload serving purely as a ping.
+    EmptyPayload empty = 1;
+
+    // A payload referencing a specific table model layout.
+    core.shared.TableReference model = 2;
+
+    // A completely custom JSON payload structure.
+    JsonPayload json = 3;
+  }
+}

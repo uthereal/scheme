@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package scheme;
+
+// GoLanguage represents language-specific configuration options for the Go 
+// generator.
+message GoLanguage {
+  // The base Go package path for the generated code 
+  // (e.g., 'github.com/myorg/gen').
+  string package_path = 1;
+}

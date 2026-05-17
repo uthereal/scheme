@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+package postgres;
+
+// FunctionLanguage specifies the programming language used for a
+// database function.
+enum FunctionLanguage {
+  // Unspecified language, typically defaults to PLPGSQL in PostgreSQL.
+  FUNCTION_LANGUAGE_UNSPECIFIED = 0;
+
+  // The PL/pgSQL procedural language, native to PostgreSQL.
+  FUNCTION_LANGUAGE_PLPGSQL = 1;
+
+  // Standard SQL query language.
+  FUNCTION_LANGUAGE_SQL = 2;
+
+  // Compiled C language.
+  FUNCTION_LANGUAGE_C = 3;
+
+  // Internal engine language functions (typically written in C and
+  // pre-compiled).
+  FUNCTION_LANGUAGE_INTERNAL = 4;
+}

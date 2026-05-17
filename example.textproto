@@ -1,0 +1,357 @@
+# proto-file: proto/scheme.proto
+# proto-message: scheme.Scheme
+
+go: {
+  package_path: "integration/gen"
+}
+
+database: {
+  name: "kitchen_sink"
+  postgres: {
+    channels: [
+      { name: "user_events" },
+      { name: "post_events" },
+      { name: "audit_events" }
+    ]
+
+    schemas: {
+      name: "audit"
+      enums: [
+        { name: "log_level", values: ["INFO", "WARN", "ERROR"] }
+      ]
+      domains: [
+        { name: "ip_address", base_type: { inet_type: { } } }
+      ]
+      tables: [
+        {
+          name: "access_logs"
+          columns: [
+            { name: "id", type: { uuid_type: { } }, default_value: "gen_random_uuid()" },
+            { name: "level", type: { enum_type: { name: "log_level", schema: "audit" } } },
+            { name: "ip", type: { domain_type: { name: "ip_address", schema: "audit" } } },
+            { name: "mac_addr", type: { macaddr_type: { } } },
+            { name: "mac_addr8", type: { macaddr8_type: { } } },
+            { name: "subnet", type: { cidr_type: { } } },
+            { name: "url", type: { text_type: { } } },
+            { name: "wal_pos", type: { pg_lsn_type: { } } },
+            { name: "created_at", type: { timestamptz_type: { precision: 6 } }, default_value: "now()" }
+          ]
+          primary_keys: ["id"]
+          notify_triggers: [
+            {
+              name: "audit_logs_trigger"
+              channel: "audit_events"
+              events: [TRIGGER_EVENT_INSERT]
+              orientation: TRIGGER_ORIENTATION_ROW
+            }
+          ]
+        }
+      ]
+    }
+
+    schemas: {
+      name: "geo"
+      tables: [
+        {
+          name: "spatial_data"
+          columns: [
+            { name: "id", type: { uuid_type: { } }, default_value: "gen_random_uuid()" },
+            { name: "point_loc", type: { point_type: { } }, is_nullable: true },
+            { name: "line_path", type: { line_type: { } }, is_nullable: true },
+            { name: "segment", type: { lseg_type: { } }, is_nullable: true },
+            { name: "bounding_box", type: { box_type: { } }, is_nullable: true },
+            { name: "travel_path", type: { path_type: { } }, is_nullable: true },
+            { name: "area", type: { polygon_type: { } }, is_nullable: true },
+            { name: "radius", type: { circle_type: { } }, is_nullable: true }
+          ]
+          primary_keys: ["id"]
+        }
+      ]
+    }
+
+    schemas: {
+      name: "public"
+      enums: [
+        { name: "user_role", values: ["ADMIN", "MODERATOR", "USER"] },
+        { name: "post_status", values: ["DRAFT", "PUBLISHED", "ARCHIVED"] }
+      ]
+      composites: [
+        {
+          name: "address"
+          fields: [
+            { name: "street", type: { varchar_type: { length: 255 } } },
+            { name: "city", type: { varchar_type: { length: 100 } } },
+            { name: "zip", type: { varchar_type: { length: 20 } } }
+          ]
+        }
+      ]
+      domains: [
+        { name: "email_address", base_type: { varchar_type: { length: 255 } } }
+      ]
+      functions: [
+        {
+          name: "get_active_user_count"
+          return_type: { integer_type: { } }
+          language: FUNCTION_LANGUAGE_PLPGSQL
+          body: "$BEGIN\n  RETURN (SELECT count(*) FROM users WHERE is_active = true);\nEND;$"
+        }
+      ]
+      tables: [
+        {
+          name: "status_codes"
+          columns: [
+            { name: "id", type: { smallserial_type: { } } },
+            { name: "description", type: { varchar_type: { length: 255 } } }
+          ]
+          primary_keys: ["id"]
+        },
+        {
+          name: "users"
+          columns: [
+            { name: "id", type: { uuid_type: { } }, default_value: "gen_random_uuid()" },
+            { name: "username", type: { varchar_type: { length: 50 } } },
+            { name: "email", type: { domain_type: { name: "email_address", schema: "public" } } },
+            { name: "role", type: { enum_type: { name: "user_role", schema: "public" } }, default_value: "'USER'" },
+            { name: "age", type: { smallint_type: { } }, is_nullable: true },
+            { name: "balance", type: { numeric_type: { } }, default_value: "0" },
+            { name: "lifetime_value", type: { money_type: { } }, default_value: "0" },
+            { name: "is_active", type: { boolean_type: { } }, default_value: "true" },
+            { name: "settings", type: { jsonb_type: { } }, default_value: "'{}'" },
+            { name: "raw_data", type: { json_type: { } }, is_nullable: true },
+            { name: "last_seen", type: { timestamp_type: { } }, is_nullable: true },
+            { name: "created_at", type: { timestamptz_type: { precision: 6 } }, default_value: "now()" },
+            { name: "country_code", type: { char_type: { length: 2 } }, is_nullable: true },
+            { name: "password_hash", type: { bytea_type: { } }, is_nullable: true },
+            { name: "subscription_duration", type: { interval_type: { } }, is_nullable: true },
+            { name: "flags", type: { bit_type: { length: 8 } }, is_nullable: true },
+            { name: "permissions_mask", type: { bit_varying_type: { } }, is_nullable: true },
+            { name: "tags", type: { array_type: { element_type: { text_type: { } } } }, is_nullable: true },
+            { name: "home_address", type: { composite_type: { name: "address", schema: "public" } }, is_nullable: true },
+            { name: "acceptable_age_range", type: { int4_range_type: { } }, is_nullable: true },
+            { name: "salary_range", type: { num_range_type: { } }, is_nullable: true },
+            { name: "schedule", type: { tstz_range_type: { } }, is_nullable: true },
+            { name: "vacation_dates", type: { date_range_type: { } }, is_nullable: true }
+          ]
+          primary_keys: ["id"]
+          indexes: [
+            { name: "users_username_key", columns: [{ name: "username" }], is_unique: true }
+          ]
+          checks: [
+            { name: "users_age_check", column: "age", predicate: "age >= 13" }
+          ]
+          notify_triggers: [
+            {
+              name: "user_events_trigger"
+              channel: "user_events"
+              events: [TRIGGER_EVENT_INSERT, TRIGGER_EVENT_UPDATE, TRIGGER_EVENT_DELETE]
+              orientation: TRIGGER_ORIENTATION_ROW
+            }
+          ]
+          relations: [
+            {
+              name: "profile"
+              type: RELATION_TYPE_ONE_TO_ONE
+              target_table: { name: "user_profiles" }
+              columns: [{ source_column: "id", target_column: "user_id" }]
+            },
+            {
+              name: "posts"
+              type: RELATION_TYPE_ONE_TO_MANY
+              target_table: { name: "posts" }
+              columns: [{ source_column: "id", target_column: "author_id" }]
+            }
+          ]
+        },
+        {
+          name: "user_profiles"
+          columns: [
+            { name: "user_id", type: { uuid_type: { } } },
+            { name: "bio", type: { text_type: { } }, is_nullable: true },
+            { name: "avatar", type: { bytea_type: { } }, is_nullable: true }
+          ]
+          primary_keys: ["user_id"]
+          foreign_keys: [
+            {
+              name: "fk_user_profiles_user"
+              target_table: { name: "users" }
+              columns: [{ source_column: "user_id", target_column: "id" }]
+              on_delete: FOREIGN_KEY_ACTION_CASCADE
+            }
+          ]
+          relations: [
+            {
+              name: "user"
+              type: RELATION_TYPE_MANY_TO_ONE
+              target_table: { name: "users" }
+              columns: [{ source_column: "user_id", target_column: "id" }]
+            }
+          ]
+        },
+        {
+          name: "posts"
+          columns: [
+            { name: "id", type: { bigserial_type: { } } },
+            { name: "author_id", type: { uuid_type: { } } },
+            { name: "title", type: { varchar_type: { length: 200 } } },
+            { name: "content", type: { text_type: { } } },
+            { name: "search_vector", type: { tsvector_type: { } }, is_nullable: true },
+            { name: "views", type: { bigint_type: { } }, default_value: "0" },
+            { name: "rating", type: { real_type: { } }, default_value: "0.0" },
+            { name: "exact_rating", type: { double_precision_type: { } }, default_value: "0.0" },
+            { name: "published_date", type: { date_type: { } }, is_nullable: true },
+            { name: "active_time_of_day", type: { time_type: { } }, is_nullable: true },
+            { name: "broadcast_time", type: { timetz_type: { } }, is_nullable: true },
+            { name: "legacy_metadata", type: { xml_type: { } }, is_nullable: true },
+            { name: "internal_oid", type: { oid_type: { } }, is_nullable: true },
+            { name: "view_target_range", type: { int8_range_type: { } }, is_nullable: true },
+            { name: "visibility_range", type: { ts_range_type: { } }, is_nullable: true }
+          ]
+          primary_keys: ["id"]
+          indexes: [
+            { name: "posts_search_idx", columns: [{ name: "search_vector" }], access_method: INDEX_ACCESS_METHOD_GIN }
+          ]
+          foreign_keys: [
+            {
+              name: "fk_posts_author"
+              target_table: { name: "users" }
+              columns: [{ source_column: "author_id", target_column: "id" }]
+              on_delete: FOREIGN_KEY_ACTION_CASCADE
+            }
+          ]
+          notify_triggers: [
+            {
+              name: "post_events_trigger"
+              channel: "post_events"
+              events: [TRIGGER_EVENT_INSERT, TRIGGER_EVENT_UPDATE, TRIGGER_EVENT_DELETE]
+              orientation: TRIGGER_ORIENTATION_ROW
+            }
+          ]
+          relations: [
+            {
+              name: "author"
+              type: RELATION_TYPE_MANY_TO_ONE
+              target_table: { name: "users" }
+              columns: [{ source_column: "author_id", target_column: "id" }]
+            },
+            {
+              name: "comments"
+              type: RELATION_TYPE_ONE_TO_MANY
+              target_table: { name: "comments" }
+              columns: [{ source_column: "id", target_column: "post_id" }]
+            },
+            {
+              name: "post_tags"
+              type: RELATION_TYPE_ONE_TO_MANY
+              target_table: { name: "post_tags" }
+              columns: [{ source_column: "id", target_column: "post_id" }]
+            }
+          ]
+        },
+        {
+          name: "comments"
+          columns: [
+            { name: "post_id", type: { bigint_type: { } } },
+            { name: "comment_id", type: { serial_type: { } } },
+            { name: "author_id", type: { uuid_type: { } } },
+            { name: "body", type: { text_type: { } } },
+            { name: "created_at", type: { timestamptz_type: { precision: 6 } }, default_value: "now()" }
+          ]
+          primary_keys: ["post_id", "comment_id"]
+          foreign_keys: [
+            {
+              name: "fk_comments_post"
+              target_table: { name: "posts" }
+              columns: [{ source_column: "post_id", target_column: "id" }]
+              on_delete: FOREIGN_KEY_ACTION_CASCADE
+            },
+            {
+              name: "fk_comments_author"
+              target_table: { name: "users" }
+              columns: [{ source_column: "author_id", target_column: "id" }]
+              on_delete: FOREIGN_KEY_ACTION_CASCADE
+            }
+          ]
+          relations: [
+            {
+              name: "post"
+              type: RELATION_TYPE_MANY_TO_ONE
+              target_table: { name: "posts" }
+              columns: [{ source_column: "post_id", target_column: "id" }]
+            },
+            {
+              name: "author"
+              type: RELATION_TYPE_MANY_TO_ONE
+              target_table: { name: "users" }
+              columns: [{ source_column: "author_id", target_column: "id" }]
+            }
+          ]
+        },
+        {
+          name: "tags"
+          columns: [
+            { name: "id", type: { serial_type: { } } },
+            { name: "name", type: { varchar_type: { length: 50 } } },
+            { name: "color_hex", type: { varchar_type: { length: 7 } }, default_value: "'#FFFFFF'" }
+          ]
+          primary_keys: ["id"]
+          indexes: [
+            { name: "tags_name_key", columns: [{ name: "name" }], is_unique: true }
+          ]
+        },
+        {
+          name: "post_tags"
+          columns: [
+            { name: "post_id", type: { bigint_type: { } } },
+            { name: "tag_id", type: { integer_type: { } } },
+            { name: "added_at", type: { timestamptz_type: { precision: 6 } }, default_value: "now()" }
+          ]
+          primary_keys: ["post_id", "tag_id"]
+          foreign_keys: [
+            {
+              name: "fk_post_tags_post"
+              target_table: { name: "posts" }
+              columns: [{ source_column: "post_id", target_column: "id" }]
+              on_delete: FOREIGN_KEY_ACTION_CASCADE
+            },
+            {
+              name: "fk_post_tags_tag"
+              target_table: { name: "tags" }
+              columns: [{ source_column: "tag_id", target_column: "id" }]
+              on_delete: FOREIGN_KEY_ACTION_CASCADE
+            }
+          ]
+          relations: [
+            {
+              name: "post"
+              type: RELATION_TYPE_MANY_TO_ONE
+              target_table: { name: "posts" }
+              columns: [{ source_column: "post_id", target_column: "id" }]
+            },
+            {
+              name: "tag"
+              type: RELATION_TYPE_MANY_TO_ONE
+              target_table: { name: "tags" }
+              columns: [{ source_column: "tag_id", target_column: "id" }]
+            }
+          ]
+        },
+        {
+          name: "virtual_stats"
+          columns: [
+            { name: "id", type: { uuid_type: { } }, default_value: "gen_random_uuid()" }
+          ]
+          virtual_columns: [
+            { name: "total_revenue", type: { decimal_type: { } } }
+          ]
+          virtual_foreign_keys: [
+            {
+              name: "vfk_stats_users"
+              target_table: { name: "users" }
+              columns: [{ source_column: "id", target_column: "id" }]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

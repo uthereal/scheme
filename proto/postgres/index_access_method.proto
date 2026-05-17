@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+package postgres;
+
+// IndexAccessMethod specifies the algorithm to be used for a database index.
+enum IndexAccessMethod {
+  // Unspecified access method, typically defaults to BTREE.
+  INDEX_ACCESS_METHOD_UNSPECIFIED = 0;
+
+  // A standard B-Tree index, optimized for equality and range queries.
+  INDEX_ACCESS_METHOD_BTREE = 1;
+
+  // A Hash index, optimized strictly for equality comparisons.
+  INDEX_ACCESS_METHOD_HASH = 2;
+
+  // A GiST (Generalized Search Tree) index, used for geometric and
+  // spatial queries.
+  INDEX_ACCESS_METHOD_GIST = 3;
+
+  // An SP-GiST (Space-Partitioned GiST) index, optimized for unbalanced
+  // search trees.
+  INDEX_ACCESS_METHOD_SPGIST = 4;
+
+  // A GIN (Generalized Inverted Index) index, highly optimized for composite
+  // values like arrays and full-text search.
+  INDEX_ACCESS_METHOD_GIN = 5;
+
+  // A BRIN (Block Range Index) index, designed for handling very large tables
+  // where values correlate with physical block locations.
+  INDEX_ACCESS_METHOD_BRIN = 6;
+}

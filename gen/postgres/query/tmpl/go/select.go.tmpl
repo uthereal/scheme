@@ -1,0 +1,53 @@
+{{- /* gotype: github.com/uthereal/scheme/gen/postgres/ast.ModelGo */ -}}
+
+{{- $modelName := .Name }}
+
+// buildColumnMappers constructs the SELECT clause and closure mappers for the 
+// given columns.
+func (q *{{ $modelName }}Query) buildColumnMappers(
+  cols []postgres.Column,
+) (string, []func(*{{ $modelName }}, []any, int), error) {
+  if len(cols) == 0 {
+    cols = []postgres.Column{
+      {{- range .Fields }}
+        {{ $modelName }}Columns.{{ .Name }},
+      {{- end }}
+    }
+  }
+
+  colStr, rawNames, err := postgres.BuildSelectString(cols)
+  if err != nil {
+    return "", nil, err
+  }
+
+  colMappers := make([]func(*{{ $modelName }}, []any, int), len(cols))
+  for i, colName := range rawNames {
+    switch colName {
+    {{- range .Fields }}
+    case "{{ .ColumnName }}":
+      colMappers[i] = func(row *{{ $modelName }}, ptrs []any, idx int) {
+        ptrs[idx] = &row.{{ .Name }}
+      }
+    {{- end }}
+    default:
+      return "", nil, fmt.Errorf("unknown column -> %s", cols[i].String())
+    }
+  }
+
+  return colStr, colMappers, nil
+}
+
+// ToSelectSQL builds the complete parameterized SELECT SQL statement 
+// and its arguments.
+func (q *{{ $modelName }}Query) ToSelectSQL(
+  startParamIdx int, withCount bool,
+) (string, []any, error) {
+  colStr, _, err := q.buildColumnMappers(q.state.Selects)
+  if err != nil {
+    return "", nil, err
+  }
+
+  return postgres.BuildSelectSQL(
+    q.state, colStr, `{{ .TableFullName }}`, startParamIdx, withCount,
+  )
+}

@@ -1,0 +1,29 @@
+syntax = "proto3";
+
+package postgres;
+
+import "postgres/data_type.proto";
+import "postgres/function_language.proto";
+import "postgres/function_argument.proto";
+
+// FunctionDefinition represents a PostgreSQL function or stored procedure.
+message FunctionDefinition {
+  // The unique name of the function.
+  string name = 1;
+
+  // The previous name of this object, used to issue RENAME commands.
+  string name_previous = 2;
+
+  // The input arguments required by the function.
+  repeated FunctionArgument arguments = 3;
+
+  // Optional return type. If omitted, implies a 'void' return.
+  // Can also be a SETOF or TABLE return type conceptually, but mapped here as a standard DataType.
+  DataType return_type = 4;
+
+  // The language the function is written in. Defaults to PLPGSQL if unspecified.
+  FunctionLanguage language = 5;
+
+  // The raw SQL or PL/pgSQL body of the function.
+  string body = 6;
+}

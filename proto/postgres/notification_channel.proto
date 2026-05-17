@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package postgres;
+
+import "postgres/data_type.proto";
+import "postgres/notification_payload.proto";
+
+// NotificationChannel defines a global LISTEN/NOTIFY channel.
+message NotificationChannel {
+  // The global channel name (e.g., "users_updated").
+  string name = 1;
+
+  // The previous name of this object, used to issue RENAME commands 
+  // instead of DROP/CREATE.
+  string name_previous = 2;
+
+  // Defines exactly what the payload looks like.
+  NotificationPayload payload = 3;
+}

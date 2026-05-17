@@ -1,0 +1,397 @@
+{{- /* gotype: github.com/uthereal/scheme/gen/postgres/ast.ModelGo */ -}}
+
+{{- $modelName := .Name }}
+
+// Get executes the query and returns a slice of matching
+// {{ $modelName }} pointers.
+func (q *{{ $modelName }}Query) Get(
+  ctx context.Context,
+) ([]*{{ $modelName }}, error) {
+  _, colMappers, err := q.buildColumnMappers(q.state.Selects)
+  if err != nil {
+    return nil, err
+  }
+
+  queryStr, args, err := q.ToSelectSQL(1, false)
+  if err != nil {
+    return nil, err
+  }
+
+  rows, err := q.db.Query(ctx, queryStr, args...)
+  if err != nil {
+    return nil, err
+  }
+  defer rows.Close()
+
+  var results []*{{ $modelName }}
+  ptrs := make([]any, len(colMappers))
+  for rows.Next() {
+    var row {{ $modelName }}
+    for i, mapper := range colMappers {
+      mapper(&row, ptrs, i)
+    }
+
+    err = rows.Scan(ptrs...)
+    if err != nil {
+      return nil, err
+    }
+    results = append(results, &row)
+  }
+
+  err = rows.Err()
+  if err != nil {
+    return nil, err
+  }
+
+  if len(results) > 0 {
+    err := q.loadEdges(ctx, results)
+    if err != nil {
+      return nil, err
+    }
+  }
+
+  return results, nil
+}
+
+// First executes the query, wrapping it with a LIMIT 1. It returns the first
+// matching {{ $modelName }} pointer, or nil if no records are found.
+func (q *{{ $modelName }}Query) First(
+  ctx context.Context,
+) (*{{ $modelName }}, error) {
+  clone := q.Limit(1)
+
+  _, colMappers, err := clone.buildColumnMappers(clone.state.Selects)
+  if err != nil {
+    return nil, err
+  }
+
+  queryStr, args, err := clone.ToSelectSQL(1, false)
+  if err != nil {
+    return nil, err
+  }
+
+  var row {{ $modelName }}
+  ptrs := make([]any, len(colMappers))
+  for i, mapper := range colMappers {
+    mapper(&row, ptrs, i)
+  }
+
+  err = clone.db.QueryRow(ctx, queryStr, args...).Scan(ptrs...)
+  if err != nil {
+    if errors.Is(err, pgx.ErrNoRows) {
+      return nil, nil
+    }
+    return nil, err
+  }
+
+  err = clone.loadEdges(ctx, []*{{ $modelName }}{&row})
+  if err != nil {
+    return nil, err
+  }
+
+  return &row, nil
+}
+
+// Exists builds and executes an optimized SELECT EXISTS(...) query.
+func (q *{{ $modelName }}Query) Exists(ctx context.Context) (bool, error) {
+  queryStr, args, err := postgres.BuildExistsSQL(
+    q.state, `{{ .TableFullName }}`,
+  )
+  if err != nil {
+    return false, err
+  }
+
+  var exists bool
+  err = q.db.QueryRow(ctx, queryStr, args...).Scan(&exists)
+  if err != nil {
+    return false, err
+  }
+  return exists, nil
+}
+
+// Paginate limits the query to a specific page and calculates the total count.
+func (q *{{ $modelName }}Query) PaginateWithCount(
+  ctx context.Context, page int, pageSize int,
+) (*postgres.CountPagination[*{{ $modelName }}], error) {
+  if page < 1 {
+    page = 1
+  }
+  if pageSize < 1 {
+    pageSize = 10
+  }
+  offset := (page - 1) * pageSize
+
+  _, colMappers, err := q.buildColumnMappers(q.state.Selects)
+  if err != nil {
+    return nil, err
+  }
+
+  clone := q.Limit(pageSize).Offset(offset)
+  queryStr, args, err := clone.ToSelectSQL(1, true)
+  if err != nil {
+    return nil, err
+  }
+
+  rows, err := clone.db.Query(ctx, queryStr, args...)
+  if err != nil {
+    return nil, err
+  }
+  defer rows.Close()
+
+  var results []*{{ $modelName }}
+  var totalCount int
+
+  ptrs := make([]any, len(colMappers)+1)
+  ptrs[len(colMappers)] = &totalCount
+
+  for rows.Next() {
+    var row {{ $modelName }}
+    for i, mapper := range colMappers {
+      mapper(&row, ptrs, i)
+    }
+
+    err = rows.Scan(ptrs...)
+    if err != nil {
+      return nil, err
+    }
+    results = append(results, &row)
+  }
+
+  err = rows.Err()
+  if err != nil {
+    return nil, err
+  }
+
+  if len(results) > 0 {
+    err := clone.loadEdges(ctx, results)
+    if err != nil {
+      return nil, err
+    }
+  }
+
+  return &postgres.CountPagination[*{{ $modelName }}]{
+    Items:      results,
+    TotalCount: totalCount,
+  }, nil
+}
+
+// PaginateSimple executes the query and returns a paginated result set without
+// a total count.
+// Instead, it fetches one extra record to determine if there are more records
+// available.
+func (q *{{ $modelName }}Query) PaginateSimple(
+  ctx context.Context, page int, pageSize int,
+) (*postgres.SimplePagination[*{{ $modelName }}], error) {
+  if page < 1 {
+    page = 1
+  }
+  if pageSize < 1 {
+    pageSize = 10
+  }
+  
+  limit := pageSize + 1
+  offset := (page - 1) * pageSize
+
+  items, err := q.Limit(limit).Offset(offset).Get(ctx)
+  if err != nil {
+    return nil, err
+  }
+
+  hasMore := false
+  if len(items) > pageSize {
+    hasMore = true
+    items = items[:pageSize]
+  }
+
+  return &postgres.SimplePagination[*{{ $modelName }}]{
+    Items:   items,
+    HasMore: hasMore,
+  }, nil
+}
+
+// loadEdges eager-loads the requested relationships for a given set of
+// {{ $modelName }} records.
+func (q *{{ $modelName }}Query) loadEdges(
+  ctx context.Context, results []*{{ $modelName }},
+) error {
+  if len(results) == 0 {
+    return nil
+  }
+  {{- range .Edges }}
+    {{- $edgeName := .Name }}
+    {{- $targetModel := .TargetModel }}
+    {{- if eq (len .LocalColumns) 0 }}{{- continue }}{{- end }}
+    {{- $edgeLocalIsNullable := .LocalIsNullable }}
+    {{- $edgeTargetIsNullable := .TargetIsNullable }}
+
+  if q.with{{ $edgeName }} != nil {
+      var keys [][]any
+      keyMap := make(map[string]struct{})
+
+      for _, item := range results {
+        tuple := make([]any, {{ len .LocalColumns }})
+        skip := false
+        {{- range $i, $lf := .LocalFields }}
+          {{- if index $edgeLocalIsNullable $i }}
+          if item.{{ $lf }} != nil {
+            tuple[{{ $i }}] = *item.{{ $lf }}
+          } else {
+            skip = true
+          }
+          {{- else }}
+          tuple[{{ $i }}] = item.{{ $lf }}
+          {{- end }}
+        {{- end }}
+
+        if skip {
+          continue
+        }
+
+        keyStr := fmt.Sprintf("%v", tuple)
+        _, exists := keyMap[keyStr]
+        if !exists {
+          keyMap[keyStr] = struct{}{}
+          keys = append(keys, tuple)
+        }
+      }
+
+      if len(keys) > 0 {
+        var sqlBuilder strings.Builder
+        var args []any
+
+        {{- if eq (len .LocalColumns) 1 }}
+        sqlBuilder.WriteString("{{ index .TargetColumns 0 }} = ANY(?)")
+        typedArgs := make([]{{ index .FieldTypes 0 }}, 0, len(keys))
+        for _, k := range keys {
+          typedArgs = append(typedArgs, k[0].({{ index .FieldTypes 0 }}))
+        }
+        args = []any{typedArgs}
+        {{- else }}
+        sqlBuilder.WriteString("(")
+        {{- range $i, $tc := .TargetColumns }}
+          {{- if $i }}
+            sqlBuilder.WriteString(", ")
+          {{- end }}
+          sqlBuilder.WriteString("{{ $tc }}")
+        {{- end }}
+        sqlBuilder.WriteString(") IN (")
+
+        args = make([]any, 0, len(keys)*{{ len .LocalColumns }})
+        for i, tuple := range keys {
+          if i > 0 {
+            sqlBuilder.WriteString(", ")
+          }
+          sqlBuilder.WriteString("(")
+          {{- range $i, $tc := .TargetColumns }}
+            {{- if $i }}
+            sqlBuilder.WriteString(", ")
+            {{- end }}
+            sqlBuilder.WriteString("?")
+          {{- end }}
+          sqlBuilder.WriteString(")")
+
+          args = append(args, tuple...)
+        }
+        sqlBuilder.WriteString(")")
+        {{- end }}
+
+        builder := q.with{{ $edgeName }}.Where(
+		postgres.Expr(sqlBuilder.String(), args...),
+	)
+        loaded, err := builder.Get(ctx)
+        if err != nil {
+          return err
+        }
+
+        {{- if .IsSlice }}
+          m := make(map[string][]*{{ $targetModel }})
+          for _, rel := range loaded {
+            tuple := make([]any, {{ len .LocalColumns }})
+            skip := false
+            {{- range $i, $tf := .TargetFields }}
+              {{- if index $edgeTargetIsNullable $i }}
+                if rel.{{ $tf }} != nil {
+                  tuple[{{ $i }}] = *rel.{{ $tf }}
+                } else {
+                  skip = true
+                }
+              {{- else }}
+                tuple[{{ $i }}] = rel.{{ $tf }}
+              {{- end }}
+            {{- end }}
+            if !skip {
+              keyStr := fmt.Sprintf("%v", tuple)
+              m[keyStr] = append(m[keyStr], rel)
+            }
+          }
+          for _, item := range results {
+            tuple := make([]any, {{ len .LocalColumns }})
+            skip := false
+            {{- range $i, $lf := .LocalFields }}
+              {{- if index $edgeLocalIsNullable $i }}
+                if item.{{ $lf }} != nil {
+                  tuple[{{ $i }}] = *item.{{ $lf }}
+                } else {
+                  skip = true
+                }
+              {{- else }}
+                tuple[{{ $i }}] = item.{{ $lf }}
+              {{- end }}
+            {{- end }}
+            if !skip {
+              keyStr := fmt.Sprintf("%v", tuple)
+              rels, ok := m[keyStr]
+              if ok {
+                item.{{ $edgeName }} = rels
+              }
+            }
+          }
+        {{- else }}
+          m := make(map[string]*{{ $targetModel }})
+          for _, rel := range loaded {
+            tuple := make([]any, {{ len .LocalColumns }})
+            skip := false
+            {{- range $i, $tf := .TargetFields }}
+              {{- if index $edgeTargetIsNullable $i }}
+                if rel.{{ $tf }} != nil {
+                  tuple[{{ $i }}] = *rel.{{ $tf }}
+                } else {
+                  skip = true
+                }
+              {{- else }}
+                tuple[{{ $i }}] = rel.{{ $tf }}
+              {{- end }}
+            {{- end }}
+            if !skip {
+              keyStr := fmt.Sprintf("%v", tuple)
+              m[keyStr] = rel
+            }
+          }
+          for _, item := range results {
+            tuple := make([]any, {{ len .LocalColumns }})
+            skip := false
+            {{- range $i, $lf := .LocalFields }}
+              {{- if index $edgeLocalIsNullable $i }}
+                if item.{{ $lf }} != nil {
+                  tuple[{{ $i }}] = *item.{{ $lf }}
+                } else {
+                  skip = true
+                }
+              {{- else }}
+                tuple[{{ $i }}] = item.{{ $lf }}
+              {{- end }}
+            {{- end }}
+            if !skip {
+              keyStr := fmt.Sprintf("%v", tuple)
+              rel, ok := m[keyStr]
+              if ok {
+                item.{{ $edgeName }} = rel
+              }
+            }
+          }
+        {{- end }}
+      }
+    }
+  {{- end }}
+  return nil
+}

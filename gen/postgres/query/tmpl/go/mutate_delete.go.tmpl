@@ -1,0 +1,25 @@
+{{- /* gotype: github.com/uthereal/scheme/gen/postgres/ast.ModelGo */ -}}
+
+{{- $modelName := .Name }}
+
+// Delete removes one or more {{ $modelName }} records from the database based
+// on the current query constraints, returning the number of rows affected.
+func (q *{{ $modelName }}Query) Delete(
+  ctx context.Context,
+) (int64, error) {
+  queryStr, args, err := postgres.BuildDeleteSQL(
+    q.state, `{{ .TableFullName }}`,
+  )
+  if err != nil {
+    return 0, err
+  }
+
+  res, err := q.db.Exec(ctx, queryStr, args...)
+  if err != nil {
+    if errors.Is(err, pgx.ErrNoRows) {
+      return 0, nil
+    }
+    return 0, err
+  }
+  return res.RowsAffected(), nil
+}

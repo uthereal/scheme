@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+package postgres;
+
+import "postgres/trigger_event.proto";
+import "postgres/trigger_orientation.proto";
+
+// NotifyTrigger configures a PostgreSQL trigger that broadcasts event
+// notifications to a specified pub/sub channel.
+message NotifyTrigger {
+  // The name of the trigger function to be generated and attached.
+  string name = 1;
+
+  // The previous name of this object, used to issue RENAME commands
+  // instead of DROP/CREATE.
+  string name_previous = 2;
+
+  // The global channel to broadcast to. Must exist on the PostgresDatabase.
+  string channel = 3;
+
+  // The events that fire this trigger (e.g., INSERT, UPDATE).
+  repeated TriggerEvent events = 4;
+
+  // Specifies whether the trigger fires per row or per statement.
+  TriggerOrientation orientation = 5;
+}

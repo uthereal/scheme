@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package core;
+
+import "postgres/database.proto";
+
+// Database represents a single logical database instance within the Scheme.
+// It acts as a top-level container, providing a generic configuration wrapper 
+// before routing down into engine-specific definitions (e.g., PostgreSQL, MySQL).
+message Database {
+  // A unique, logical name for the database instance.
+  // This name is primarily used by the framework to construct isolated 
+  // generated packages (e.g., 'package mydb') and configuration bindings.
+  string name = 1;
+
+  // The engine-specific database configuration and schema hierarchy.
+  oneof engine {
+    // The complete schema layout and configuration for a PostgreSQL database.
+    postgres.PostgresDatabase postgres = 2;
+  }
+}

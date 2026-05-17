@@ -1,0 +1,248 @@
+{{- /* gotype: github.com/uthereal/scheme/gen/postgres/ast.ModelGo */ -}}
+
+{{- $modelName := .Name }}
+
+// Upsert executes a MERGE INTO statement for a single
+// {{ $modelName }} record.
+func (q *{{ $modelName }}Query) Upsert(
+  ctx context.Context,
+  conflictCols []postgres.Column,
+  opts ...postgres.MutateOption,
+) (*{{ $modelName }}, error) {
+  res, err := q.UpsertMany(ctx, conflictCols, opts)
+  if err != nil {
+    return nil, err
+  }
+  if len(res) == 0 {
+    return nil, nil
+  }
+  return res[0], nil
+}
+
+// UpsertMany executes a MERGE INTO statement for multiple
+// {{ $modelName }} records in a single batch operation.
+func (q *{{ $modelName }}Query) UpsertMany(
+  ctx context.Context,
+  conflictCols []postgres.Column,
+  items ...[]postgres.MutateOption,
+) ([]*{{ $modelName }}, error) {
+  if len(items) == 0 {
+    return nil, nil
+  }
+  if len(conflictCols) == 0 {
+    return nil, errors.New("upsert requires at least one conflict column")
+  }
+
+  // Evaluate the functional options into maps of column -> value
+  rowsData := make([]map[postgres.Column]any, 0, len(items))
+  var activeCols []postgres.Column
+  colSet := make(map[postgres.Column]struct{})
+
+  for _, rowOpts := range items {
+    m := make(map[postgres.Column]any)
+    for _, opt := range rowOpts {
+      opt(m)
+    }
+    rowsData = append(rowsData, m)
+
+    // Track all unique columns touched across the entire batch
+    for col := range m {
+      _, exists := colSet[col]
+      if !exists {
+        colSet[col] = struct{}{}
+        activeCols = append(activeCols, col)
+      }
+    }
+  }
+
+  if len(activeCols) == 0 {
+    return nil, errors.New("no columns to upsert")
+  }
+
+  var query strings.Builder
+  query.Grow(1024)
+  query.WriteString(
+    `MERGE INTO {{ .TableFullName }} AS t USING (SELECT * FROM UNNEST(`,
+  )
+
+  var args = make([]any, len(activeCols))
+  for i, col := range activeCols {
+    if i > 0 {
+      query.WriteString(", ")
+    }
+    query.WriteString("$")
+    query.WriteString(strconv.Itoa(i + 1))
+    query.WriteString("::")
+
+    switch col.String() {
+    {{- range .Fields }}
+    case {{ $modelName }}Columns.{{ .Name }}.String():
+      query.WriteString("{{ .PgBaseType }}[]")
+      arr := make([]*{{ .GoBaseType }}, len(rowsData))
+      for j, m := range rowsData {
+        val, ok := m[col]
+        if ok && val != nil {
+          {{- if .IsPtr }}
+          arr[j] = val.(*{{ .GoBaseType }})
+          {{- else }}
+          v := val.({{ .GoBaseType }})
+          arr[j] = &v
+          {{- end }}
+        }
+      }
+      args[i] = arr
+    {{- end }}
+    default:
+      return nil, fmt.Errorf("unknown column -> %s", col.String())
+    }
+  }
+
+  query.WriteString(") WITH ORDINALITY AS val(")
+  for i, col := range activeCols {
+    if i > 0 {
+      query.WriteString(", ")
+    }
+    query.WriteString(col.String())
+  }
+  query.WriteString(", ord)) AS s ON ")
+
+  for i, col := range conflictCols {
+    if i > 0 {
+      query.WriteString(" AND ")
+    }
+    colName := col.String()
+    asIdx := strings.Index(strings.ToUpper(colName), " AS ")
+    if asIdx >= 0 {
+      colName = colName[:asIdx]
+    }
+    idx := strings.LastIndexByte(colName, '.')
+    if idx >= 0 {
+      colName = colName[idx+1:]
+    }
+    colName = strings.Trim(colName, `"`)
+    query.WriteString("t.")
+    query.WriteString(colName)
+    query.WriteString(" = s.")
+    query.WriteString(col.String())
+  }
+
+  query.WriteString(" WHEN MATCHED THEN UPDATE SET ")
+  for i, col := range activeCols {
+    if i > 0 {
+      query.WriteString(", ")
+    }
+    colName := col.String()
+    asIdx := strings.Index(strings.ToUpper(colName), " AS ")
+    if asIdx >= 0 {
+      colName = colName[:asIdx]
+    }
+    idx := strings.LastIndexByte(colName, '.')
+    if idx >= 0 {
+      colName = colName[idx+1:]
+    }
+    colName = strings.Trim(colName, `"`)
+    query.WriteString(colName)
+    query.WriteString(" = s.")
+    query.WriteString(colName)
+  }
+
+  query.WriteString(" WHEN NOT MATCHED THEN INSERT (")
+  for i, col := range activeCols {
+    if i > 0 {
+      query.WriteString(", ")
+    }
+    colName := col.String()
+    asIdx := strings.Index(strings.ToUpper(colName), " AS ")
+    if asIdx >= 0 {
+      colName = colName[:asIdx]
+    }
+    idx := strings.LastIndexByte(colName, '.')
+    if idx >= 0 {
+      colName = colName[idx+1:]
+    }
+    colName = strings.Trim(colName, `"`)
+    query.WriteString(colName)
+  }
+  query.WriteString(") VALUES (")
+  for i, col := range activeCols {
+    if i > 0 {
+      query.WriteString(", ")
+    }
+    colName := col.String()
+    asIdx := strings.Index(strings.ToUpper(colName), " AS ")
+    if asIdx >= 0 {
+      colName = colName[:asIdx]
+    }
+    idx := strings.LastIndexByte(colName, '.')
+    if idx >= 0 {
+      colName = colName[idx+1:]
+    }
+    colName = strings.Trim(colName, `"`)
+    query.WriteString("s.")
+    query.WriteString(colName)
+  }
+  query.WriteString(")")
+
+  returning := q.state.Returning
+  if len(returning) == 0 {
+    _, err := q.db.Exec(ctx, query.String(), args...)
+    if err != nil {
+      return nil, err
+    }
+    return nil, nil
+  }
+
+  colStr, colMappers, err := q.buildColumnMappers(returning)
+  if err != nil {
+    return nil, err
+  }
+
+  query.WriteString(" RETURNING ")
+  query.WriteString("t.")
+  query.WriteString(strings.ReplaceAll(colStr, ", ", ", t."))
+  query.WriteString(", s.ord::INT")
+
+  dbRows, err := q.db.Query(ctx, query.String(), args...)
+  if err != nil {
+    return nil, err
+  }
+  defer dbRows.Close()
+  var results = make([]*{{ $modelName }}, len(items))
+
+  ptrs := make([]any, len(colMappers)+1)
+  var ord int
+  ptrs[len(colMappers)] = &ord
+
+  for dbRows.Next() {
+    var clone {{ $modelName }}
+    for j, mapper := range colMappers {
+      mapper(&clone, ptrs, j)
+    }
+
+    err = dbRows.Scan(ptrs...)
+    if err != nil {
+      return nil, err
+    }
+
+    // Ordinality is 1-based, ensuring correct positional mapping
+    if ord > 0 && ord <= len(results) {
+      results[ord-1] = &clone
+    }
+  }
+
+  err = dbRows.Err()
+  if err != nil {
+    return nil, err
+  }
+
+  // Filter out any missed rows (e.g., if a WHERE constraint on the MERGE 
+  // prevented matching/inserting)
+  var compacted = make([]*{{ $modelName }}, 0, len(items))
+  for _, r := range results {
+    if r != nil {
+      compacted = append(compacted, r)
+    }
+  }
+
+  return compacted, nil
+}

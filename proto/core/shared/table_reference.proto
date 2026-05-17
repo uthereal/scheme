@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package core.shared;
+
+// TableReference represents a fully qualified reference to a database table.
+// It includes the database name, schema name, and table name components
+// that together uniquely identify a table.
+message TableReference {
+  // Name of the logical database containing the table.
+  string database = 1;
+  // Name of the logical schema (or namespace) within the database.
+  string schema = 2;
+  // Name of the table within the schema.
+  string name = 3;
+}

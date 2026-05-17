@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+package postgres;
+
+import "postgres/data_type.proto";
+
+// FunctionArgument represents an input parameter to a PostgreSQL function.
+message FunctionArgument {
+  // The name of the function argument.
+  string name = 1;
+
+  // The data type of the function argument.
+  DataType type = 2;
+}

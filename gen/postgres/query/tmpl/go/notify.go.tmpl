@@ -1,0 +1,110 @@
+{{- /* gotype: github.com/uthereal/scheme/gen/postgres/ast.SchemaGraphGo */ -}}
+
+{{- if or .Channels .Triggers }}
+
+{{- range .Channels }}
+const NotifyChannel{{ .GoName }} = "{{ .Name }}"
+{{- end }}
+
+{{- range .Triggers }}
+{{- $triggerGoName := .GoName }}
+{{- $payloadStruct := .GoPayloadStruct }}
+
+{{- if not .IsEmptyPayload }}
+// {{ $payloadStruct }} defines the payload for the {{ .Name }} trigger.
+type {{ $payloadStruct }} struct {
+        Action string `json:"action"`
+        Old    *{{ .ModelGo.Name }} `json:"old"`
+        New    *{{ .ModelGo.Name }} `json:"new"`
+}
+{{- end }}
+
+// listen{{ $triggerGoName }}Conn blocks and listens on the provided connection.
+func listen{{ $triggerGoName }}Conn(
+        ctx context.Context,
+        conn *pgx.Conn,
+{{- if .IsEmptyPayload }}
+        onNotify func() error,
+{{- else }}
+        onNotify func(payload *{{ $payloadStruct }}) error,
+{{- end }}
+) error {
+        // Find the channel name for this trigger.
+        channelName := "{{ .Channel }}"
+        _, err := conn.Exec(ctx, "LISTEN " + channelName)
+        if err != nil {
+                return err
+        }
+
+        for {
+                notify, err := conn.WaitForNotification(ctx)
+                if err != nil {
+                        return err
+                }
+
+                if notify == nil {
+                        continue
+                }
+
+{{- if .IsEmptyPayload }}
+                _ = onNotify()
+{{- else }}
+                var payload {{ $payloadStruct }}
+                err = json.Unmarshal([]byte(notify.Payload), &payload)
+                if err != nil {
+                        continue 
+                }
+
+                // We could also verify payload.Action if needed to match
+                // events,
+                // but the struct inherently represents a notification for this
+                // trigger.
+                _ = onNotify(&payload)
+{{- end }}
+        }
+}
+
+// Listen{{ $triggerGoName }} blocks and listens for events on the configured
+// channel. If the connection drops or the handler returns, it automatically
+// heals the connection using the listener's pool and resumes listening.
+//
+// This function is blocking; run it in a goroutine if you do not want to halt
+// execution.
+func Listen{{ $triggerGoName }}(
+        ctx context.Context,
+        l *postgres.Listener,
+{{- if .IsEmptyPayload }}
+        onNotify func() error,
+{{- else }}
+        onNotify func(payload *{{ $payloadStruct }}) error,
+{{- end }}
+) {
+        for {
+                if ctx.Err() != nil {
+                        return
+                }
+
+                conn, err := l.Pool().Acquire(ctx)
+                if err != nil {
+                        select {
+                        case <-ctx.Done():
+                                return
+                        case <-time.After(time.Second):
+                                continue
+                        }
+                }
+
+                _ = listen{{ $triggerGoName }}Conn(ctx, conn.Conn(), onNotify)
+
+                conn.Release()
+
+                select {
+                case <-ctx.Done():
+                        return
+                case <-time.After(time.Second):
+                }
+        }
+}
+{{- end }}
+{{- end }}
+

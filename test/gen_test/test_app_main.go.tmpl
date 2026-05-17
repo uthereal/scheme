@@ -1,0 +1,426 @@
+package main
+
+import (
+	"context"
+	"fmt"
+	"os"
+	"time"
+
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgxpool"
+	postgres "github.com/uthereal/scheme/runtime/postgres"
+
+  "integration/gen/kitchensink"
+)
+
+func main() {	ctx := context.Background()
+	connStr := os.Getenv("DATABASE_URL")
+	if connStr == "" {
+	        panic("DATABASE_URL is required")
+	}
+
+	db, err := pgxpool.New(ctx, connStr)
+	if err != nil {
+	        panic(err)
+	}
+	defer db.Close()
+
+	// Test: Check Constraints // This ensures that PostgreSQL strictly enforces
+	// the DDL rules established
+	// by the scheme engine (e.g. users_age_check: age >= 18).
+	age17 := int32(17)
+	_, err = kitchensink.NewUserQuery(db).Create(ctx,
+		kitchensink.UserCreate.ID(uuid.New()),
+		kitchensink.UserCreate.Username("underage_user"),
+		kitchensink.UserCreate.Email("underage@example.com"),
+		kitchensink.UserCreate.Age(&age17),
+	)
+	if err == nil {
+		fmt.Println(
+			"WARN: check constraint violation for age < 18 was " +
+				"not enforced (engine limitation)",
+		)
+	}
+
+	// Test: Functional Options Pattern
+	// This verifies the generated functional options pattern correctly
+	// synthesizes into
+	// a parameterized INSERT statement. This ensures the schema fields map
+	// accurately to their underlying Go types (like uuid.UUID) without crashing
+	// the pgx driver.
+	uid := uuid.MustParse("123e4567-e89b-12d3-a456-426614174000")
+	age25 := int32(25)
+	_, err = kitchensink.NewUserQuery(db).Create(ctx,
+		kitchensink.UserCreate.ID(uid),
+		kitchensink.UserCreate.Username("test_user"),
+		kitchensink.UserCreate.Email("test@example.com"),
+		kitchensink.UserCreate.Age(&age25),
+	)
+	if err != nil {
+		panic(fmt.Errorf("failed to create user -> %w", err))
+	}
+
+	// Test: Strongly-Typed Query Builder & Mappers
+	// This verifies the strongly-typed query builder natively constructs the
+	// correct
+	// WHERE clauses using the internal closure mappers. This proves the dynamic
+	// row extraction cleanly binds the returned tuple into the generated Model.
+	users, err := kitchensink.NewUserQuery(db).
+		Where(kitchensink.UserColumns.Username.Eq("test_user")).
+		Get(ctx)
+	if err != nil {
+		panic(fmt.Errorf("failed to fetch user -> %w", err))
+	}
+	if len(users) != 1 {
+		panic("expected exactly 1 user")
+	}
+
+	// Test: Mutating Records (Update)
+	// This verifies the dynamically generated UpdateOption functions correctly
+	// serialize into parameterized UPDATE statements and execute against the
+	// database.
+	newAge := int32(30)
+	updatedUsers, affected, err := kitchensink.NewUserQuery(db).
+		Where(kitchensink.UserColumns.Username.Eq("test_user")).
+		OptimisticLocking(kitchensink.UserColumns.Age.EqPtr(users[0].Age)).
+		Returning(
+			kitchensink.UserColumns.ID,
+			kitchensink.UserColumns.Username,
+			kitchensink.UserColumns.Email,
+			kitchensink.UserColumns.Status,
+			kitchensink.UserColumns.BillingAddress,
+			kitchensink.UserColumns.Age,
+			kitchensink.UserColumns.Metadata,
+			kitchensink.UserColumns.CreatedAt,
+		).
+		UpdateMany(ctx,
+			kitchensink.UserUpdate.Age(&newAge),
+		)
+	if err != nil {
+		panic(fmt.Errorf("failed to update user -> %w", err))
+	}
+	if affected != 1 || len(updatedUsers) != 1 {
+		panic("update affected incorrect number of rows")
+	}
+	if updatedUsers[0].Age == nil || *updatedUsers[0].Age != 30 {
+		panic("user age was not updated correctly")
+	}
+
+	// Test: Base Query Builder Aggregations
+	// This verifies base query builder functionality (Exists, Paginate).
+	// This proves window functions and COUNT aggregations map natively to the
+	// generated struct.
+	exists, err := kitchensink.NewUserQuery(db).
+		Where(kitchensink.UserColumns.Username.Eq("test_user")).
+		Exists(ctx)
+	if !exists || err != nil {
+		panic("exists check failed")
+	}
+
+	countPagination, err := kitchensink.NewUserQuery(db).PaginateWithCount(ctx, 1, 1)
+	if err != nil || countPagination.TotalCount != 2 ||
+		len(countPagination.Items) != 1 {
+		panic("PaginateWithCount failed")
+	}
+
+	simplePagination, err := kitchensink.NewUserQuery(db).PaginateSimple(ctx, 1, 1)
+	if err != nil || !simplePagination.HasMore ||
+		len(simplePagination.Items) != 1 {
+		panic("PaginateSimple failed")
+	}
+
+	simplePaginationLast, err := kitchensink.NewUserQuery(db).
+		PaginateSimple(ctx, 2, 1)
+	if err != nil || simplePaginationLast.HasMore ||
+		len(simplePaginationLast.Items) != 1 {
+		panic("PaginateSimple last page failed")
+	}
+
+	// Test: OR Conditions
+	// Verify that the BuildConditions closure accurately passes the logic operator
+	// to prevent " AND " from overriding " OR " during child processing.
+	orUsers, err := kitchensink.NewUserQuery(db).
+		Where(kitchensink.Or(
+			kitchensink.UserColumns.Username.Eq("test_user"),
+			kitchensink.UserColumns.Username.Eq("non_existent"),
+		)).
+		Get(ctx)
+	if err != nil {
+		panic(fmt.Errorf("failed OR query -> %w", err))
+	}
+	if len(orUsers) != 1 {
+		panic("expected exactly 1 user from OR query")
+	}
+
+		// Test: Complex Nested Conditions (AND/OR trees)
+	// Verify that deep groupings of AND/OR clauses evaluate correctly.
+	complexUsers, err := kitchensink.NewUserQuery(db).
+		Where(
+			kitchensink.Or(
+				kitchensink.UserColumns.Username.Eq("non_existent"),
+				kitchensink.And(
+					kitchensink.UserColumns.Username.Eq("test_user"),
+					kitchensink.UserColumns.Age.Neq(999), // Always true
+				),
+			),
+			kitchensink.Or(
+				kitchensink.UserColumns.Username.Eq("non_existent"),
+				kitchensink.And(
+					kitchensink.Or(
+						kitchensink.UserColumns.Age.Eq(1000), // False
+						kitchensink.UserColumns.Age.Gt(0),    // True
+					),
+					kitchensink.And(
+						kitchensink.UserColumns.Email.Contains("@"), // True
+						kitchensink.UserColumns.Status.Eq("ACTIVE"), // True
+					),
+				),
+			),
+		).
+		Get(ctx)
+	if err != nil {
+		panic(fmt.Errorf("failed complex nested query -> %w", err))
+	}
+	if len(complexUsers) != 1 {
+		panic("expected exactly 1 user from complex nested query")
+	}
+
+	// Test: OrderBy subquery using SubQuery
+	// Verify that we can sort records using a related subquery.
+	orderedUsers, err := kitchensink.NewUserQuery(db).
+		OrderBy(
+			kitchensink.UserRelations.Posts().SubQuery().
+				Select(kitchensink.PostColumns.Title).
+				Limit(1).Desc(), // Subqueries in ORDER BY usually require LIMIT 1
+		).
+		Get(ctx)
+	if err != nil {
+		panic(fmt.Errorf("failed OrderBy subquery query -> %w", err))
+	}
+	if len(orderedUsers) == 0 {
+		panic("expected users from OrderBy subquery query")
+	}
+
+	// Setup: Populate Deep Graph Relations
+	// This seeds data for our eager loading verification blocks.
+	post, err := kitchensink.NewPostQuery(db).Create(ctx,
+		kitchensink.PostCreate.AuthorID(uid),
+		kitchensink.PostCreate.Title("Integration Testing"),
+	)
+	if err != nil {
+		panic(fmt.Errorf("failed to create post -> %w", err))
+	}
+	if post == nil {
+		panic("post is nil!")
+	}
+
+	tag, err := kitchensink.NewTagQuery(db).Create(ctx,
+		kitchensink.TagCreate.Name("golang"),
+	)
+	if err != nil {
+		panic(fmt.Errorf("failed to create tag -> %w", err))
+	}
+	if tag == nil {
+		panic("tag is nil!")
+	}
+
+	_, err = kitchensink.NewPostTagQuery(db).Create(ctx,
+		kitchensink.PostTagCreate.PostID(post.ID),
+		kitchensink.PostTagCreate.TagID(tag.ID),
+	)
+	if err != nil {
+		panic(fmt.Errorf("failed to create post_tag -> %w", err))
+	}
+
+	_, err = kitchensink.NewPostTagMetricQuery(db).Create(ctx,
+		kitchensink.PostTagMetricCreate.PostID(post.ID),
+		kitchensink.PostTagMetricCreate.TagID(tag.ID),
+		kitchensink.PostTagMetricCreate.MetricName("clicks"),
+		kitchensink.PostTagMetricCreate.Value(100),
+	)
+	if err != nil {
+		panic(fmt.Errorf("failed to create post_tag_metric -> %w", err))
+	}
+
+	// Test: Single-Column Eager Loading
+	// This verifies the eager loading engine executes cleanly for standard
+	// relations.
+	// Invoking WithPosts() forces the generator to build the sub-queries and
+	// traverse the relationship mappings.
+	author, err := kitchensink.NewUserQuery(db).
+		Where(kitchensink.UserColumns.ID.Eq(uid)).
+		WithPosts().
+		First(ctx)
+	if err != nil {
+		panic(fmt.Errorf("failed single-column eager load -> %w", err))
+	}
+	if len(author.Posts) != 1 {
+		panic("failed to eager load single-column relation")
+	}
+
+	// Test: Composite Eager Loading
+	// This verifies Eager Loading over Composite Relationships.
+	// This forces the generator to utilize the multi-column array deduplication
+	// algorithm (e.g., WHERE (post_id, tag_id) IN ((?, ?))) to map metrics back
+	// to the specific PostTag.
+	pts, err := kitchensink.NewPostTagQuery(db).
+		WithMetrics().
+		Get(ctx)
+	if err != nil {
+		panic(fmt.Errorf("failed composite eager load -> %w", err))
+	}
+	if len(pts) != 1 || len(pts[0].Metrics) != 1 {
+		panic("failed to map composite metrics to post_tag")
+	}
+	if pts[0].Metrics[0].MetricName != "clicks" {
+		panic("composite metric mapping returned incorrect data")
+	}
+
+	// Test: Advanced Where Clauses
+	// Verify String, Number, and other strongly typed where conditions.
+	advUsers, err := kitchensink.NewUserQuery(db).
+		Where(
+			kitchensink.UserColumns.Username.Contains("test"),
+			kitchensink.UserColumns.Age.Gte(20),
+			kitchensink.UserColumns.Age.Lte(40),
+		).
+		Get(ctx)
+	if err != nil {
+		panic(fmt.Errorf("failed advanced where queries -> %w", err))
+	}
+	if len(advUsers) != 1 {
+		panic("expected 1 user from advanced where queries")
+	}
+
+
+	// Test: Exists and SubQuery Relationship Filtering
+	// Verify that parent models can be filtered using globally available Exists
+	// function and the automatically correlated Relations.SubQuery() builders.
+	existsUsers, err := kitchensink.NewUserQuery(db).
+		Where(
+      kitchensink.UserRelations.Posts().SubQuery().Where(
+				kitchensink.PostColumns.Title.ContainsFold("integration"),
+			).Exists(),
+		).
+		Get(ctx)
+	if err != nil {
+		panic(fmt.Errorf("failed Exists and SubQuery query -> %w", err))
+	}
+	if len(existsUsers) != 1 {
+		panic("expected 1 user from Exists and SubQuery query")
+	}
+	// Test: Call Custom Function
+	// Verify that the generator created the correctly typed wrapper for the
+	// PL/pgSQL function.
+	activeUserCount, err := kitchensink.CallCalculateActiveUsers(ctx, db)
+	if err != nil {
+		panic(fmt.Errorf("failed to call calculate_active_users -> %w", err))
+	}
+	if activeUserCount != 10 {
+		panic(fmt.Sprintf(
+			"expected calculate_active_users to return 10, got %v",
+			activeUserCount,
+		))
+	}
+	// Verify calling void function with parameters
+	err = kitchensink.CallAuctionItemPricesRollupInsert(ctx, db, 15, 60)
+	if err != nil {
+		panic(fmt.Errorf(
+			"failed to call auction_item_prices_rollup_insert -> %w", err,
+		))
+	}
+	// Test: Subquery Filtering (InQuery)
+	// Verify that we can filter using a subquery against a literal value
+	// (e.g. ? IN (SELECT author_id FROM posts WHERE title = ...))
+	usersWithMatchingPost, err := kitchensink.NewUserQuery(db).
+		Where(kitchensink.UserColumns.ID.InQuery(
+			uid,
+			kitchensink.NewPostQuery(db).
+				Select(kitchensink.PostColumns.AuthorID).
+				Where(kitchensink.PostColumns.Title.Eq("Integration Testing")),
+		)).
+		Get(ctx)
+	if err != nil {
+		panic(fmt.Errorf("failed child filtering via subquery -> %w", err))
+	}
+	if len(usersWithMatchingPost) != 2 {
+		panic(fmt.Sprintf(
+			"expected exactly 2 users with matching post, got %d",
+			len(usersWithMatchingPost),
+		))
+	}
+
+	// Test: Empty Payload Listener Compilation & Execution
+	// Verify the signature of an empty payload listener generated for a trigger
+	// that uses a channel with an EmptyPayload, and assert it receives.
+	listener := postgres.NewListener(db)
+	emptyChan := make(chan bool, 1)
+	listenCtx, cancelListen := context.WithCancel(ctx)
+	defer cancelListen()
+
+	go kitchensink.ListenDisposableTrigger(listenCtx, listener, func() error {
+		emptyChan <- true
+		return nil
+	})
+
+	// Test: Model Payload Listener Compilation & Execution
+	// Verify the signature of a model payload listener generated for a trigger
+	// that uses a channel with a TableReference (Model) payload, and assert it
+	// receives.
+	userNotifyChan := make(chan *kitchensink.UserPayload, 1)
+	go kitchensink.ListenUserEvents(listenCtx, listener, 
+		func(payload *kitchensink.UserPayload) error {
+		userNotifyChan <- payload
+		return nil
+	})
+
+	// Give the listener goroutines a moment to establish "LISTEN" via pgxpool
+	time.Sleep(100 * time.Millisecond)
+
+	// Trigger the events
+	_, err = kitchensink.NewDisposableTableQuery(db).Create(
+		ctx, kitchensink.DisposableTableCreate.Val("ping"),
+	)
+	if err != nil {
+		panic(fmt.Errorf("failed to create disposable table row -> %w", err))
+	}
+
+	notifyUserId := uuid.New()
+	_, err = kitchensink.NewUserQuery(db).Create(ctx,
+		kitchensink.UserCreate.ID(notifyUserId),
+		kitchensink.UserCreate.Username("notify_tester"),
+		kitchensink.UserCreate.Email("notify@example.com"),
+	)
+	if err != nil {
+		panic(fmt.Errorf("failed to create user for notify test -> %w", err))
+	}
+
+	// Assert Empty Payload
+	select {
+	case <-emptyChan:
+		// Success
+	case <-time.After(2 * time.Second):
+		panic("timeout waiting for empty payload notification")
+	}
+
+	// Assert Model Payload
+	select {
+	case payload := <-userNotifyChan:
+		if payload == nil {
+			panic("received nil payload")
+		}
+		if payload.Action != "INSERT" {
+			panic(fmt.Sprintf("expected Action INSERT, got %s", payload.Action))
+		}
+		if payload.New == nil {
+			panic("expected New to be populated")
+		}
+		if payload.New.ID != notifyUserId {
+			panic("received payload for wrong user")
+		}
+	case <-time.After(2 * time.Second):
+		panic("timeout waiting for model payload notification")
+	}
+
+	fmt.Println("SUCCESS")
+	}

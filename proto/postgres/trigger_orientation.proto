@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package postgres;
+
+// TriggerOrientation specifies whether a trigger fires once per statement
+// or once per modified row.
+enum TriggerOrientation {
+  // Unspecified trigger orientation.
+  TRIGGER_ORIENTATION_UNSPECIFIED = 0;
+
+  // The trigger fires once for every row affected by the operation.
+  TRIGGER_ORIENTATION_ROW = 1;
+
+  // The trigger fires once for the entire statement, regardless of rows
+  // affected.
+  TRIGGER_ORIENTATION_STATEMENT = 2;
+}

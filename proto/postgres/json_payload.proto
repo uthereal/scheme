@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package postgres;
+
+import "postgres/json_payload_field.proto";
+
+// JsonPayload represents a bespoke, strongly-typed JSON object sent over a channel.
+message JsonPayload {
+  // The individual fields that compose the JSON payload object.
+  repeated JsonPayloadField fields = 1;
+}

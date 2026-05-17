@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package postgres;
+
+import "postgres/data_type.proto";
+
+// JsonPayloadField defines a single property in a custom JSON object payload.
+message JsonPayloadField {
+  // The JSON key name (e.g., "auction_id").
+  string key = 1;
+
+  // The explicit PostgreSQL data type (used to generate the correct Go type).
+  DataType type = 2;
+
+  // The SQL expression used to populate this field in the trigger function.
+  // e.g., "NEW.id", "OLD.status", or even "CURRENT_TIMESTAMP"
+  string value = 3;
+}

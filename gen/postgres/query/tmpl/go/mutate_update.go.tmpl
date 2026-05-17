@@ -1,0 +1,113 @@
+{{- /* gotype: github.com/uthereal/scheme/gen/postgres/ast.ModelGo */ -}}
+
+{{- $modelName := .Name }}
+
+// {{ $modelName }}Update provides strongly-typed setter functions for
+// updating a {{ $modelName }} record.
+var {{ $modelName }}Update = struct {
+  {{- range .Fields }}
+    {{ .Name }} func({{ .GoType }}) postgres.MutateOption
+    {{- if not (eq .GoType "bool") }}
+    {{ .Name }}Null func() postgres.MutateOption
+    {{- end }}
+  {{- end }}
+}{
+  {{- range .Fields }}
+    {{ .Name }}: func(v {{ .GoType }}) postgres.MutateOption {
+      return func(m map[postgres.Column]any) {
+        m[{{ $modelName }}Columns.{{ .Name }}] = v
+      }
+    },
+    {{- if not (eq .GoType "bool") }}
+    {{ .Name }}Null: func() postgres.MutateOption {
+      return func(m map[postgres.Column]any) {
+        m[{{ $modelName }}Columns.{{ .Name }}] = nil
+      }
+    },
+    {{- end }}
+  {{- end }}
+}
+
+// Update applies the provided options to all {{ $modelName }} records matching
+// the current query constraints. It returns the updated records if a RETURNING
+// clause is used, or the number of affected rows otherwise.
+func (q *{{ $modelName }}Query) Update(
+  ctx context.Context, opts ...postgres.MutateOption,
+) (*{{ $modelName }}, error) {
+  res, _, err := q.UpdateMany(ctx, opts...)
+  if err != nil {
+    return nil, err
+  }
+  if len(res) == 0 {
+    return nil, nil
+  }
+  return res[0], nil
+}
+
+func (q *{{ $modelName }}Query) UpdateMany(
+  ctx context.Context, opts ...postgres.MutateOption,
+) ([]*{{ $modelName }}, int64, error) {
+  if len(opts) == 0 {
+    return nil, 0, errors.New("no update options provided")
+  }
+
+  m := make(map[postgres.Column]any)
+  for _, opt := range opts {
+    opt(m)
+  }
+
+  if len(m) == 0 {
+    return nil, 0, errors.New("no columns to update")
+  }
+
+  queryStr, args, err := postgres.BuildUpdateSQL(
+    q.state, `{{ .TableFullName }}`, m,
+  )
+  if err != nil {
+    return nil, 0, err
+  }
+
+  returning := q.state.Returning
+  if len(returning) == 0 {
+    res, err := q.db.Exec(ctx, queryStr, args...)
+    if err != nil {
+      return nil, 0, err
+    }
+    rowsAffected := res.RowsAffected()
+    return nil, rowsAffected, nil
+  }
+
+  colStr, colMappers, err := q.buildColumnMappers(returning)
+  if err != nil {
+    return nil, 0, err
+  }
+
+  queryStr += " RETURNING " + colStr
+
+  dbRows, err := q.db.Query(ctx, queryStr, args...)
+  if err != nil {
+    return nil, 0, err
+  }
+  defer dbRows.Close()
+  var results = make([]*{{ $modelName }}, 0)
+  ptrs := make([]any, len(colMappers))
+  for dbRows.Next() {
+    var clone {{ $modelName }}
+    for j, mapper := range colMappers {
+      mapper(&clone, ptrs, j)
+    }
+
+    err = dbRows.Scan(ptrs...)
+    if err != nil {
+      return nil, 0, err
+    }
+    results = append(results, &clone)
+  }
+
+  err = dbRows.Err()
+  if err != nil {
+    return nil, 0, err
+  }
+
+  return results, int64(len(results)), nil
+}
