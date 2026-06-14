@@ -89,140 +89,144 @@ func formatInterval(
 // ToDatabaseDataType maps a Protobuf DataType definition into its equivalent
 // PostgreSQL data type string representation.
 func ToDatabaseDataType(
-  dt *postgres.DataType,
+	dt *postgres.DataType,
+	defaultSchema string,
 ) (migrate.DatabaseDataType, error) {
-  if dt == nil {
-    return "", errors.New("data type cannot be nil")
-  }
+	if dt == nil {
+		return "", errors.New("data type cannot be nil")
+	}
 
-  switch t := dt.GetType().(type) {
-  // 1. Fixed-name types
-  case *postgres.DataType_SmallintType:
-    return "smallint", nil
-  case *postgres.DataType_IntegerType:
-    return "integer", nil
-  case *postgres.DataType_BigintType:
-    return "bigint", nil
-  case *postgres.DataType_RealType:
-    return "real", nil
-  case *postgres.DataType_DoublePrecisionType:
-    return "double precision", nil
-  case *postgres.DataType_SmallserialType:
-    return "smallint", nil
-  case *postgres.DataType_SerialType:
-    return "integer", nil
-  case *postgres.DataType_BigserialType:
-    return "bigint", nil
-  case *postgres.DataType_MoneyType:
-    return "money", nil
-  case *postgres.DataType_TextType:
-    return "text", nil
-  case *postgres.DataType_ByteaType:
-    return "bytea", nil
-  case *postgres.DataType_DateType:
-    return "date", nil
-  case *postgres.DataType_BooleanType:
-    return "boolean", nil
-  case *postgres.DataType_PointType:
-    return "point", nil
-  case *postgres.DataType_LineType:
-    return "line", nil
-  case *postgres.DataType_LsegType:
-    return "lseg", nil
-  case *postgres.DataType_BoxType:
-    return "box", nil
-  case *postgres.DataType_PathType:
-    return "path", nil
-  case *postgres.DataType_PolygonType:
-    return "polygon", nil
-  case *postgres.DataType_CircleType:
-    return "circle", nil
-  case *postgres.DataType_InetType:
-    return "inet", nil
-  case *postgres.DataType_CidrType:
-    return "cidr", nil
-  case *postgres.DataType_MacaddrType:
-    return "macaddr", nil
-  case *postgres.DataType_Macaddr8Type:
-    return "macaddr8", nil
-  case *postgres.DataType_TsvectorType:
-    return "tsvector", nil
-  case *postgres.DataType_TsqueryType:
-    return "tsquery", nil
-  case *postgres.DataType_UuidType:
-    return "uuid", nil
-  case *postgres.DataType_XmlType:
-    return "xml", nil
-  case *postgres.DataType_JsonType:
-    return "json", nil
-  case *postgres.DataType_JsonbType:
-    return "jsonb", nil
-  case *postgres.DataType_JsonpathType:
-    return "jsonpath", nil
-  case *postgres.DataType_Int4RangeType:
-    return "int4range", nil
-  case *postgres.DataType_Int8RangeType:
-    return "int8range", nil
-  case *postgres.DataType_NumRangeType:
-    return "numrange", nil
-  case *postgres.DataType_TsRangeType:
-    return "tsrange", nil
-  case *postgres.DataType_TstzRangeType:
-    return "tstzrange", nil
-  case *postgres.DataType_DateRangeType:
-    return "daterange", nil
-  case *postgres.DataType_OidType:
-    return "oid", nil
-  case *postgres.DataType_PgLsnType:
-    return "pg_lsn", nil
+	switch t := dt.GetType().(type) {
+	// 1. Fixed-name types
+	case *postgres.DataType_SmallintType:
+		return "smallint", nil
+	case *postgres.DataType_IntegerType:
+		return "integer", nil
+	case *postgres.DataType_BigintType:
+		return "bigint", nil
+	case *postgres.DataType_RealType:
+		return "real", nil
+	case *postgres.DataType_DoublePrecisionType:
+		return "double precision", nil
+	case *postgres.DataType_SmallserialType:
+		return "smallint", nil
+	case *postgres.DataType_SerialType:
+		return "integer", nil
+	case *postgres.DataType_BigserialType:
+		return "bigint", nil
+	case *postgres.DataType_MoneyType:
+		return "money", nil
+	case *postgres.DataType_TextType:
+		return "text", nil
+	case *postgres.DataType_ByteaType:
+		return "bytea", nil
+	case *postgres.DataType_DateType:
+		return "date", nil
+	case *postgres.DataType_BooleanType:
+		return "boolean", nil
+	case *postgres.DataType_PointType:
+		return "point", nil
+	case *postgres.DataType_LineType:
+		return "line", nil
+	case *postgres.DataType_LsegType:
+		return "lseg", nil
+	case *postgres.DataType_BoxType:
+		return "box", nil
+	case *postgres.DataType_PathType:
+		return "path", nil
+	case *postgres.DataType_PolygonType:
+		return "polygon", nil
+	case *postgres.DataType_CircleType:
+		return "circle", nil
+	case *postgres.DataType_InetType:
+		return "inet", nil
+	case *postgres.DataType_CidrType:
+		return "cidr", nil
+	case *postgres.DataType_MacaddrType:
+		return "macaddr", nil
+	case *postgres.DataType_Macaddr8Type:
+		return "macaddr8", nil
+	case *postgres.DataType_TsvectorType:
+		return "tsvector", nil
+	case *postgres.DataType_TsqueryType:
+		return "tsquery", nil
+	case *postgres.DataType_UuidType:
+		return "uuid", nil
+	case *postgres.DataType_XmlType:
+		return "xml", nil
+	case *postgres.DataType_JsonType:
+		return "json", nil
+	case *postgres.DataType_JsonbType:
+		return "jsonb", nil
+	case *postgres.DataType_JsonpathType:
+		return "jsonpath", nil
+	case *postgres.DataType_Int4RangeType:
+		return "int4range", nil
+	case *postgres.DataType_Int8RangeType:
+		return "int8range", nil
+	case *postgres.DataType_NumRangeType:
+		return "numrange", nil
+	case *postgres.DataType_TsRangeType:
+		return "tsrange", nil
+	case *postgres.DataType_TstzRangeType:
+		return "tstzrange", nil
+	case *postgres.DataType_DateRangeType:
+		return "daterange", nil
+	case *postgres.DataType_OidType:
+		return "oid", nil
+	case *postgres.DataType_PgLsnType:
+		return "pg_lsn", nil
 
-  // 2. Types with Precision/Scale (Numeric & Decimal)
-  case *postgres.DataType_DecimalType:
-    return formatNumeric(
-      t.DecimalType.Precision, t.DecimalType.Scale,
-    ), nil
-  case *postgres.DataType_NumericType:
-    return formatNumeric(
-      t.NumericType.Precision, t.NumericType.Scale,
-    ), nil
+	// 2. Types with Precision/Scale (Numeric & Decimal)
+	case *postgres.DataType_DecimalType:
+		return formatNumeric(
+			t.DecimalType.Precision, t.DecimalType.Scale,
+		), nil
+	case *postgres.DataType_NumericType:
+		return formatNumeric(
+			t.NumericType.Precision, t.NumericType.Scale,
+		), nil
 
-  // 3. Character Types
-  case *postgres.DataType_VarcharType:
-    return formatLength("character varying", t.VarcharType.Length), nil
-  case *postgres.DataType_CharType:
-    return formatLength("character", t.CharType.Length), nil
+	// 3. Character Types
+	case *postgres.DataType_VarcharType:
+		return formatLength("character varying", t.VarcharType.Length), nil
+	case *postgres.DataType_CharType:
+		return formatLength("character", t.CharType.Length), nil
 
-  // 4. Bit String Types
-  case *postgres.DataType_BitType:
-    return formatLength("bit", t.BitType.Length), nil
-  case *postgres.DataType_BitVaryingType:
-    return formatLength("bit varying", t.BitVaryingType.Length), nil
+	// 4. Bit String Types
+	case *postgres.DataType_BitType:
+		return formatLength("bit", t.BitType.Length), nil
+	case *postgres.DataType_BitVaryingType:
+		return formatLength("bit varying", t.BitVaryingType.Length), nil
 
-  // 5. Date/Time Types (with precision)
-  case *postgres.DataType_TimestampType:
-    return formatTimePrecision(
-      "timestamp without time zone", t.TimestampType.Precision,
-    ), nil
-  case *postgres.DataType_TimestamptzType:
-    return formatTimePrecision(
-      "timestamp with time zone", t.TimestamptzType.Precision,
-    ), nil
-  case *postgres.DataType_TimeType:
-    return formatTimePrecision(
-      "time without time zone", t.TimeType.Precision,
-    ), nil
-  case *postgres.DataType_TimetzType:
-    return formatTimePrecision(
-      "time with time zone", t.TimetzType.Precision,
-    ), nil
-  case *postgres.DataType_IntervalType:
-    return formatInterval(
-      t.IntervalType.GetFields(), t.IntervalType.Precision,
-    ), nil
+	// 5. Date/Time Types (with precision)
+	case *postgres.DataType_TimestampType:
+		return formatTimePrecision(
+			"timestamp without time zone", t.TimestampType.Precision,
+		), nil
+	case *postgres.DataType_TimestamptzType:
+		return formatTimePrecision(
+			"timestamp with time zone", t.TimestamptzType.Precision,
+		), nil
+	case *postgres.DataType_TimeType:
+		return formatTimePrecision(
+			"time without time zone", t.TimeType.Precision,
+		), nil
+	case *postgres.DataType_TimetzType:
+		return formatTimePrecision(
+			"time with time zone", t.TimetzType.Precision,
+		), nil
+	case *postgres.DataType_IntervalType:
+		return formatInterval(
+			t.IntervalType.GetFields(), t.IntervalType.Precision,
+		), nil
 
 	// 6. Schema-Qualified Types (Enum, Composite, Domain)
 	case *postgres.DataType_EnumType:
 		schema := t.EnumType.GetSchema()
+		if schema == "" {
+			schema = defaultSchema
+		}
 		if schema == "" {
 			return "", fmt.Errorf(
 				"enum type %q is missing a schema prefix",
@@ -233,6 +237,9 @@ func ToDatabaseDataType(
 	case *postgres.DataType_CompositeType:
 		schema := t.CompositeType.GetSchema()
 		if schema == "" {
+			schema = defaultSchema
+		}
+		if schema == "" {
 			return "", fmt.Errorf(
 				"composite type %q is missing a schema prefix",
 				t.CompositeType.GetName(),
@@ -242,6 +249,9 @@ func ToDatabaseDataType(
 	case *postgres.DataType_DomainType:
 		schema := t.DomainType.GetSchema()
 		if schema == "" {
+			schema = defaultSchema
+		}
+		if schema == "" {
 			return "", fmt.Errorf(
 				"domain type %q is missing a schema prefix",
 				t.DomainType.GetName(),
@@ -249,19 +259,21 @@ func ToDatabaseDataType(
 		}
 		return formatQualifiedName(schema, t.DomainType.GetName()), nil
 	case *postgres.DataType_CustomRangeType:
-    return formatQualifiedName("", t.CustomRangeType.GetName()), nil
+		return formatQualifiedName("", t.CustomRangeType.GetName()), nil
 
-  // 7. Recursive Types (Arrays)
-  case *postgres.DataType_ArrayType:
-    inner, err := ToDatabaseDataType(t.ArrayType.GetElementType())
-    if err != nil {
-      return "", err
-    }
-    return migrate.DatabaseDataType(inner.String() + "[]"), nil
+	// 7. Recursive Types (Arrays)
+	case *postgres.DataType_ArrayType:
+		inner, err := ToDatabaseDataType(
+			t.ArrayType.GetElementType(), defaultSchema,
+		)
+		if err != nil {
+			return "", err
+		}
+		return migrate.DatabaseDataType(inner.String() + "[]"), nil
 
-  default:
-    return "", fmt.Errorf("unsupported data type mapping: %T", t)
-  }
+	default:
+		return "", fmt.Errorf("unsupported data type mapping: %T", t)
+	}
 }
 
 // NormalizeDefaultExpression normalizes a PostgreSQL default value expression
@@ -269,21 +281,22 @@ func ToDatabaseDataType(
 // positive diffs when comparing schema-defined defaults (like "NOW()") against
 // Postgres' internal representation (like "now()").
 func NormalizeDefaultExpression(expr string) string {
-  if expr == "" {
-    return ""
-  }
-  var b strings.Builder
-  inQuote := false
-  for i := 0; i < len(expr); i++ {
-    c := expr[i]
-    if c == '\'' {
-      inQuote = !inQuote
-      b.WriteByte(c)
-    } else if !inQuote && c >= 'A' && c <= 'Z' {
-      b.WriteByte(c + 32)
-    } else {
-      b.WriteByte(c)
-    }
-  }
-  return b.String()
+	if expr == "" {
+		return ""
+	}
+	var b strings.Builder
+	inQuote := false
+	for i := 0; i < len(expr); i++ {
+		c := expr[i]
+		if c == '\'' {
+			inQuote = !inQuote
+			b.WriteByte(c)
+		} else if !inQuote && c >= 'A' && c <= 'Z' {
+			b.WriteByte(c + 32)
+		} else {
+			b.WriteByte(c)
+		}
+	}
+	return b.String()
 }
+

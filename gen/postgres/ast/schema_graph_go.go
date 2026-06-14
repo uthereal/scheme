@@ -111,7 +111,7 @@ func NewSchemaGraphGo(
           err,
         )
       }
-      pgType, err := pgmigrate.ToDatabaseDataType(f.Type)
+      pgType, err := pgmigrate.ToDatabaseDataType(f.Type, m.SchemaName)
       if err != nil {
         return nil, fmt.Errorf("failed to extract pg type -> %w", err)
       }
@@ -837,7 +837,7 @@ func (sgg *SchemaGraphGo) getPgBaseType(dt *postgres.DataType) string {
       }
     }
   }
-  pgType, _ := pgmigrate.ToDatabaseDataType(dt)
+  pgType, _ := pgmigrate.ToDatabaseDataType(dt, "")
   return string(pgType)
 }
 

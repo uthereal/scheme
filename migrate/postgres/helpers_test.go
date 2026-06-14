@@ -561,7 +561,7 @@ func TestResolvePGType(t *testing.T) {
   }
   for _, tt := range tests {
     t.Run(tt.name, func(t *testing.T) {
-      got, err := ToDatabaseDataType(tt.dt)
+      got, err := ToDatabaseDataType(tt.dt, "")
       if tt.wantErr {
         assert.Error(t, err)
       } else {
@@ -620,4 +620,77 @@ func TestNormalizeDefaultExpression(t *testing.T) {
       assert.Equal(t, tt.want, NormalizeDefaultExpression(tt.expr))
     })
   }
+}
+
+func TestInflateAndResolve(t *testing.T) {
+	tests := []struct {
+		name    string
+		dt      *postgres.DataType
+		schema  string
+		want    string
+		wantErr bool
+	}{
+		{
+			"enum inflation",
+			&postgres.DataType{
+				Type: &postgres.DataType_EnumType{
+					EnumType: &postgres.EnumReference{Name: "type"},
+				},
+			},
+			"gateway",
+			"gateway.type",
+			false,
+		},
+		{
+			"composite inflation",
+			&postgres.DataType{
+				Type: &postgres.DataType_CompositeType{
+					CompositeType: &postgres.CompositeReference{Name: "address"},
+				},
+			},
+			"public",
+			"public.address",
+			false,
+		},
+		{
+			"domain inflation",
+			&postgres.DataType{
+				Type: &postgres.DataType_DomainType{
+					DomainType: &postgres.DomainReference{Name: "email"},
+				},
+			},
+			"auth",
+			"auth.email",
+			false,
+		},
+		{
+			"array enum inflation",
+			&postgres.DataType{
+				Type: &postgres.DataType_ArrayType{
+					ArrayType: &postgres.ArrayType{
+						ElementType: &postgres.DataType{
+							Type: &postgres.DataType_EnumType{
+								EnumType: &postgres.EnumReference{Name: "tag"},
+							},
+						},
+					},
+				},
+			},
+			"blog",
+			"blog.tag[]",
+			false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := ToDatabaseDataType(tt.dt, tt.schema)
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				assert.Equal(t, tt.want, string(got))
+			}
+		})
+	}
 }

@@ -356,7 +356,7 @@ func NewDatabaseStateFromProto(
 
       for _, d := range s.GetDomains() {
         schemaState.DomainNames = append(schemaState.DomainNames, d.GetName())
-        dbType, err := ToDatabaseDataType(d.GetBaseType())
+        dbType, err := ToDatabaseDataType(d.GetBaseType(), s.GetName())
         if err != nil {
           return err
         }
@@ -381,7 +381,7 @@ func NewDatabaseStateFromProto(
           funcState.Language = "plpgsql"
         }
         for _, arg := range f.GetArguments() {
-          dbType, err := ToDatabaseDataType(arg.GetType())
+          dbType, err := ToDatabaseDataType(arg.GetType(), s.GetName())
           if err != nil {
             return err
           }
@@ -394,7 +394,7 @@ func NewDatabaseStateFromProto(
           )
         }
         if f.GetReturnType() != nil {
-          retType, err := ToDatabaseDataType(f.GetReturnType())
+          retType, err := ToDatabaseDataType(f.GetReturnType(), s.GetName())
           if err != nil {
             return err
           }
@@ -420,7 +420,7 @@ func NewDatabaseStateFromProto(
         }
         for i, f := range c.GetFields() {
           compState.FieldNames = append(compState.FieldNames, f.GetName())
-          dbType, err := ToDatabaseDataType(f.GetType())
+          dbType, err := ToDatabaseDataType(f.GetType(), s.GetName())
           if err != nil {
             return err
           }
@@ -456,7 +456,7 @@ func NewDatabaseStateFromProto(
 
         for _, c := range t.GetColumns() {
           tableState.ColumnNames = append(tableState.ColumnNames, c.GetName())
-          dbType, err := ToDatabaseDataType(c.GetType())
+          dbType, err := ToDatabaseDataType(c.GetType(), s.GetName())
           if err != nil {
             return err
           }
@@ -637,6 +637,7 @@ func NewDatabaseStateFromProto(
             Language:   "plpgsql",
             Body:       "BEGIN\n  " + body + "\n  RETURN NULL;\nEND;",
           }
+          schemaState.FunctionNames = append(schemaState.FunctionNames, funcName)
 
           tableState.Triggers[trig.GetName()] = &TriggerState{
             Name:        trig.GetName(),
