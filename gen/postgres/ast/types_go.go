@@ -37,7 +37,14 @@ type NotificationChannelGo struct {
 
 // EnumGo wraps Enum for Go specific generation.
 type EnumGo struct {
-  *Enum
+  Name   string
+  Values []*EnumValueGo
+}
+
+// EnumValueGo represents a Go-specific enum value with an exported, prefixed name.
+type EnumValueGo struct {
+  Name  string
+  Value string
 }
 
 // FunctionGo wraps FunctionDefinition for Go specific generation.

@@ -113,19 +113,13 @@ func ComputeDiff(
 //  3. Creates any new target schemas that do not exist natively yet.
 //  4. Drops any live database schemas that no longer exist in the target state.
 func (d *Differ) planSchemas() error {
-  targetNames := make([]string, 0, len(d.target.Schemas))
-  for k := range d.target.Schemas {
-    targetNames = append(targetNames, k)
-  }
-  slices.Sort(targetNames)
-
   // Step 1: Move required renames to temp names to free up namespace
   pendingRenames := make(map[string]pendingRename)
-  for _, tName := range targetNames {
+  for _, tName := range d.target.SchemaNames {
     targetSchema, ok := d.target.Schemas[tName]
     if !ok {
       return fmt.Errorf(
-        "schema %q loaded from target.Schemas now not found in target.Schemas",
+        "schema %q loaded from target.SchemaNames now not found in target.Schemas",
         tName,
       )
     }
@@ -160,7 +154,7 @@ func (d *Differ) planSchemas() error {
   }
 
   // Step 2: Move all pending renames to their final names
-  for _, tName := range targetNames {
+  for _, tName := range d.target.SchemaNames {
     info, isRenaming := pendingRenames[tName]
     if !isRenaming {
       continue
@@ -182,7 +176,7 @@ func (d *Differ) planSchemas() error {
   }
 
   // Step 3: Handle creation of new schemas
-  for _, tName := range targetNames {
+  for _, tName := range d.target.SchemaNames {
     _, exists := d.scratch.Schemas[tName]
     if exists {
       continue
@@ -195,13 +189,19 @@ func (d *Differ) planSchemas() error {
       Name:       tName,
       SQL:        sqlStr,
     })
+    d.scratch.SchemaNames = append(d.scratch.SchemaNames, tName)
     d.scratch.Schemas[tName] = &SchemaState{
-      Name:       tName,
-      Tables:     make(map[string]*TableState),
-      Enums:      make(map[string]*EnumState),
-      Composites: make(map[string]*CompositeState),
-      Domains:    make(map[string]*DomainState),
-      Functions:  make(map[string]*FunctionState),
+      Name:           tName,
+      Tables:         make(map[string]*TableState),
+      TableNames:     []string{},
+      Enums:          make(map[string]*EnumState),
+      EnumNames:      []string{},
+      Composites:     make(map[string]*CompositeState),
+      CompositeNames: []string{},
+      Domains:        make(map[string]*DomainState),
+      DomainNames:    []string{},
+      Functions:      make(map[string]*FunctionState),
+      FunctionNames:  []string{},
     }
   }
 
@@ -239,17 +239,11 @@ func (d *Differ) planSchemas() error {
 //  4. Creates any new target enums that do not exist natively yet.
 //  5. Drops any live database enums that no longer exist in the target state.
 func (d *Differ) planEnums() error {
-  schemaNames := make([]string, 0, len(d.target.Schemas))
-  for k := range d.target.Schemas {
-    schemaNames = append(schemaNames, k)
-  }
-  slices.Sort(schemaNames)
-
-  for _, schemaName := range schemaNames {
+  for _, schemaName := range d.target.SchemaNames {
     targetSchema, ok := d.target.Schemas[schemaName]
     if !ok {
       return fmt.Errorf(
-        "schema %q loaded from target.Schemas now not found in target.Schemas",
+        "schema %q loaded from target.SchemaNames now not found in target.Schemas",
         schemaName,
       )
     }
@@ -262,15 +256,9 @@ func (d *Differ) planEnums() error {
       )
     }
 
-    targetNames := make([]string, 0, len(targetSchema.Enums))
-    for k := range targetSchema.Enums {
-      targetNames = append(targetNames, k)
-    }
-    slices.Sort(targetNames)
-
     // Step 1: Move required renames to temp names to free up namespace
     pendingRenames := make(map[string]pendingRename)
-    for _, tName := range targetNames {
+    for _, tName := range targetSchema.EnumNames {
       targetEnum, ok := targetSchema.Enums[tName]
 
       if !ok {
@@ -314,7 +302,7 @@ func (d *Differ) planEnums() error {
     }
 
     // Step 2: Move all pending renames to their final names
-    for _, tName := range targetNames {
+    for _, tName := range targetSchema.EnumNames {
       info, isRenaming := pendingRenames[tName]
       if !isRenaming {
         continue
@@ -337,7 +325,7 @@ func (d *Differ) planEnums() error {
     }
 
     // Step 3a: Alter existing enums to add new values
-    for _, tName := range targetNames {
+    for _, tName := range targetSchema.EnumNames {
       targetEnum, ok := targetSchema.Enums[tName]
 
       if !ok {
@@ -381,7 +369,7 @@ func (d *Differ) planEnums() error {
     // PostgreSQL does not natively support ALTER TYPE ... DROP VALUE.
 
     // Step 4: Handle creation of new enums
-    for _, tName := range targetNames {
+    for _, tName := range targetSchema.EnumNames {
       targetEnum, ok := targetSchema.Enums[tName]
 
       if !ok {
@@ -411,6 +399,7 @@ func (d *Differ) planEnums() error {
         Name:       tName,
         SQL:        sqlStr,
       })
+      liveSchema.EnumNames = append(liveSchema.EnumNames, tName)
       liveSchema.Enums[tName] = &EnumState{
         Name:   tName,
         Values: targetEnum.Values,
@@ -455,17 +444,11 @@ func (d *Differ) planEnums() error {
 //  5. Drops any live database composites that no longer exist in the target
 //     state.
 func (d *Differ) planComposites() error {
-  schemaNames := make([]string, 0, len(d.target.Schemas))
-  for k := range d.target.Schemas {
-    schemaNames = append(schemaNames, k)
-  }
-  slices.Sort(schemaNames)
-
-  for _, schemaName := range schemaNames {
+  for _, schemaName := range d.target.SchemaNames {
     targetSchema, ok := d.target.Schemas[schemaName]
     if !ok {
       return fmt.Errorf(
-        "schema %q loaded from target.Schemas now not found in target.Schemas",
+        "schema %q loaded from target.SchemaNames now not found in target.Schemas",
         schemaName,
       )
     }
@@ -478,15 +461,9 @@ func (d *Differ) planComposites() error {
       )
     }
 
-    targetNames := make([]string, 0, len(targetSchema.Composites))
-    for k := range targetSchema.Composites {
-      targetNames = append(targetNames, k)
-    }
-    slices.Sort(targetNames)
-
     // Step 1: Move required renames to temp names to free up namespace
     pendingRenames := make(map[string]pendingRename)
-    for _, tName := range targetNames {
+    for _, tName := range targetSchema.CompositeNames {
       targetComp, ok := targetSchema.Composites[tName]
       if !ok {
         return fmt.Errorf(
@@ -529,7 +506,7 @@ func (d *Differ) planComposites() error {
     }
 
     // Step 2: Move all pending renames to their final names
-    for _, tName := range targetNames {
+    for _, tName := range targetSchema.CompositeNames {
       info, isRenaming := pendingRenames[tName]
       if !isRenaming {
         continue
@@ -552,7 +529,7 @@ func (d *Differ) planComposites() error {
     }
 
     // Step 3a: Alter existing composites to add new attributes
-    for _, tName := range targetNames {
+    for _, tName := range targetSchema.CompositeNames {
       targetComp, ok := targetSchema.Composites[tName]
       if !ok {
         return fmt.Errorf(
@@ -566,15 +543,7 @@ func (d *Differ) planComposites() error {
         continue
       }
 
-      targetFields := make([]string, 0, len(targetComp.Fields))
-      for k := range targetComp.Fields {
-        targetFields = append(targetFields, k)
-      }
-      slices.SortFunc(targetFields, func(a string, b string) int {
-        return targetComp.Fields[a].Position - targetComp.Fields[b].Position
-      })
-
-      for _, fName := range targetFields {
+      for _, fName := range targetComp.FieldNames {
         targetField, ok := targetComp.Fields[fName]
         if !ok {
           return fmt.Errorf(
@@ -605,7 +574,7 @@ func (d *Differ) planComposites() error {
     }
 
     // Step 3b: Alter existing composites to drop removed attributes
-    for _, tName := range targetNames {
+    for _, tName := range targetSchema.CompositeNames {
       targetComp, ok := targetSchema.Composites[tName]
       if !ok {
         return fmt.Errorf(
@@ -620,8 +589,8 @@ func (d *Differ) planComposites() error {
       }
 
       targetFieldMap := make(map[string]struct{})
-      for k := range targetComp.Fields {
-        targetFieldMap[k] = struct{}{}
+      for _, fName := range targetComp.FieldNames {
+        targetFieldMap[fName] = struct{}{}
       }
 
       liveFieldNames := make([]string, 0, len(liveComp.Fields))
@@ -654,7 +623,7 @@ func (d *Differ) planComposites() error {
     }
 
     // Step 4: Handle creation of new composites
-    for _, tName := range targetNames {
+    for _, tName := range targetSchema.CompositeNames {
       targetComp, ok := targetSchema.Composites[tName]
       if !ok {
         return fmt.Errorf(
@@ -668,16 +637,8 @@ func (d *Differ) planComposites() error {
         continue
       }
 
-      fields := make([]string, 0, len(targetComp.Fields))
-      for k := range targetComp.Fields {
-        fields = append(fields, k)
-      }
-      slices.SortFunc(fields, func(a string, b string) int {
-        return targetComp.Fields[a].Position - targetComp.Fields[b].Position
-      })
-
-      vals := make([]string, 0, len(fields))
-      for _, fName := range fields {
+      vals := make([]string, 0, len(targetComp.FieldNames))
+      for _, fName := range targetComp.FieldNames {
         field, ok := targetComp.Fields[fName]
         if !ok {
           return fmt.Errorf(
@@ -700,9 +661,11 @@ func (d *Differ) planComposites() error {
         SQL:        sqlStr,
       })
 
+      liveSchema.CompositeNames = append(liveSchema.CompositeNames, tName)
       liveSchema.Composites[tName] = &CompositeState{
-        Name:   tName,
-        Fields: make(map[string]*CompositeFieldState),
+        Name:       tName,
+        Fields:     make(map[string]*CompositeFieldState),
+        FieldNames: []string{},
       }
     }
 
@@ -744,20 +707,15 @@ func (d *Differ) planComposites() error {
 //  4. Creates any new target domains that do not exist natively yet.
 //  5. Drops any live database domains that no longer exist in the target state.
 func (d *Differ) planFunctions() error {
-  for sName, targetSchema := range d.target.Schemas {
+  for _, sName := range d.target.SchemaNames {
+    targetSchema := d.target.Schemas[sName]
     liveSchema, exists := d.scratch.Schemas[sName]
     if !exists {
       continue
     }
 
-    targetFuncNames := make([]string, 0, len(targetSchema.Functions))
-    for k := range targetSchema.Functions {
-      targetFuncNames = append(targetFuncNames, k)
-    }
-    slices.Sort(targetFuncNames)
-
     funcRenames := make(map[string]pendingRename)
-    for _, tName := range targetFuncNames {
+    for _, tName := range targetSchema.FunctionNames {
       targetFunc := targetSchema.Functions[tName]
       pName := targetFunc.NamePrevious
       if pName == "" || pName == tName {
@@ -793,7 +751,11 @@ func (d *Differ) planFunctions() error {
         funcRenames[tName] = pendingRename{tempName: tmpName}
       }
     }
-    for tName, info := range funcRenames {
+    for _, tName := range targetSchema.FunctionNames {
+      info, isRenaming := funcRenames[tName]
+      if !isRenaming {
+        continue
+      }
       liveFunc := liveSchema.Functions[info.tempName]
       argTypes := make([]string, 0, len(liveFunc.Arguments))
       for _, arg := range liveFunc.Arguments {
@@ -817,7 +779,7 @@ func (d *Differ) planFunctions() error {
       liveSchema.Functions[tName] = liveFunc
       delete(liveSchema.Functions, info.tempName)
     }
-    for _, tName := range targetFuncNames {
+    for _, tName := range targetSchema.FunctionNames {
       targetFunc := targetSchema.Functions[tName]
       liveFunc, exists := liveSchema.Functions[tName]
       if exists {
@@ -898,6 +860,9 @@ func (d *Differ) planFunctions() error {
       })
       argsCopy := make([]FunctionArgumentState, len(targetFunc.Arguments))
       copy(argsCopy, targetFunc.Arguments)
+      if !exists {
+        liveSchema.FunctionNames = append(liveSchema.FunctionNames, tName)
+      }
       liveSchema.Functions[tName] = &FunctionState{
         Name:       tName,
         Arguments:  argsCopy,
@@ -941,17 +906,11 @@ func (d *Differ) planFunctions() error {
 }
 
 func (d *Differ) planDomains() error {
-  schemaNames := make([]string, 0, len(d.target.Schemas))
-  for k := range d.target.Schemas {
-    schemaNames = append(schemaNames, k)
-  }
-  slices.Sort(schemaNames)
-
-  for _, schemaName := range schemaNames {
+  for _, schemaName := range d.target.SchemaNames {
     targetSchema, ok := d.target.Schemas[schemaName]
     if !ok {
       return fmt.Errorf(
-        "schema %q loaded from target.Schemas now not found in target.Schemas",
+        "schema %q loaded from target.SchemaNames now not found in target.Schemas",
         schemaName,
       )
     }
@@ -964,15 +923,9 @@ func (d *Differ) planDomains() error {
       )
     }
 
-    targetNames := make([]string, 0, len(targetSchema.Domains))
-    for k := range targetSchema.Domains {
-      targetNames = append(targetNames, k)
-    }
-    slices.Sort(targetNames)
-
     // Step 1: Move required renames to temp names to free up namespace
     pendingRenames := make(map[string]pendingRename)
-    for _, tName := range targetNames {
+    for _, tName := range targetSchema.DomainNames {
       targetDom, ok := targetSchema.Domains[tName]
       if !ok {
         return fmt.Errorf(
@@ -1015,7 +968,7 @@ func (d *Differ) planDomains() error {
     }
 
     // Step 2: Move all pending renames to their final names
-    for _, tName := range targetNames {
+    for _, tName := range targetSchema.DomainNames {
       info, isRenaming := pendingRenames[tName]
       if !isRenaming {
         continue
@@ -1038,8 +991,8 @@ func (d *Differ) planDomains() error {
     }
 
     // Step 3: Alter existing domains (recreating if the underlying data type
-    //     changes)
-    for _, tName := range targetNames {
+    //         changes)
+    for _, tName := range targetSchema.DomainNames {
       targetDom, ok := targetSchema.Domains[tName]
       if !ok {
         return fmt.Errorf(
@@ -1055,10 +1008,10 @@ func (d *Differ) planDomains() error {
 
       if liveDom.DataType != targetDom.DataType {
         d.Actions = append(d.Actions, MigrationAction{
-          Type:       ActionTypeDrop,
-          ObjectType: ObjectDomain,
-          Schema:     schemaName,
-          Name:       tName,
+          Type:          ActionTypeDrop,
+          ObjectType:    ObjectDomain,
+          Schema:        schemaName,
+          Name:          tName,
           SQL: fmt.Sprintf(
             "DROP DOMAIN %q.%q CASCADE;",
             schemaName, tName,
@@ -1081,7 +1034,7 @@ func (d *Differ) planDomains() error {
     }
 
     // Step 4: Handle creation of new domains
-    for _, tName := range targetNames {
+    for _, tName := range targetSchema.DomainNames {
       targetDom, ok := targetSchema.Domains[tName]
       if !ok {
         return fmt.Errorf(
@@ -1107,6 +1060,7 @@ func (d *Differ) planDomains() error {
         SQL:        sqlStr,
       })
 
+      liveSchema.DomainNames = append(liveSchema.DomainNames, tName)
       liveSchema.Domains[tName] = &DomainState{
         Name:     tName,
         DataType: targetDom.DataType,
@@ -1147,17 +1101,11 @@ func (d *Differ) planDomains() error {
 //  2. Creates any new target tables that do not exist natively yet.
 //  3. Drops any live database tables that no longer exist in the target state.
 func (d *Differ) planTables() error {
-  schemaNames := make([]string, 0, len(d.target.Schemas))
-  for k := range d.target.Schemas {
-    schemaNames = append(schemaNames, k)
-  }
-  slices.Sort(schemaNames)
-
-  for _, schemaName := range schemaNames {
+  for _, schemaName := range d.target.SchemaNames {
     targetSchema, ok := d.target.Schemas[schemaName]
     if !ok {
       return fmt.Errorf(
-        "schema %q loaded from target.Schemas now not found in target.Schemas",
+        "schema %q loaded from target.SchemaNames now not found in target.Schemas",
         schemaName,
       )
     }
@@ -1167,15 +1115,9 @@ func (d *Differ) planTables() error {
       return fmt.Errorf("in-memory live schema missing -> %s", schemaName)
     }
 
-    targetNames := make([]string, 0, len(targetSchema.Tables))
-    for k := range targetSchema.Tables {
-      targetNames = append(targetNames, k)
-    }
-    slices.Sort(targetNames)
-
     // Step 1: Move required renames to temp names to free up namespace
     pendingRenames := make(map[string]pendingRename)
-    for _, tName := range targetNames {
+    for _, tName := range targetSchema.TableNames {
       targetTable, ok := targetSchema.Tables[tName]
       if !ok {
         return fmt.Errorf(
@@ -1218,7 +1160,7 @@ func (d *Differ) planTables() error {
     }
 
     // Step 2: Move all pending renames to their final names
-    for _, tName := range targetNames {
+    for _, tName := range targetSchema.TableNames {
       info, isRenaming := pendingRenames[tName]
       if !isRenaming {
         continue
@@ -1241,7 +1183,7 @@ func (d *Differ) planTables() error {
     }
 
     // Step 3: Handle creation of new tables
-    for _, tName := range targetNames {
+    for _, tName := range targetSchema.TableNames {
       _, ok := targetSchema.Tables[tName]
       if !ok {
         return fmt.Errorf(
@@ -1263,11 +1205,17 @@ func (d *Differ) planTables() error {
         SQL:        fmt.Sprintf("CREATE TABLE %q.%q ();", schemaName, tName),
       })
 
+      liveSchema.TableNames = append(liveSchema.TableNames, tName)
       liveSchema.Tables[tName] = &TableState{
-        Name:        tName,
-        Columns:     make(map[string]*ColumnState),
-        Indexes:     make(map[string]*IndexState),
-        ForeignKeys: make(map[string]*ForeignKeyState),
+        Name:            tName,
+        Columns:         make(map[string]*ColumnState),
+        ColumnNames:     []string{},
+        Indexes:         make(map[string]*IndexState),
+        IndexNames:      []string{},
+        ForeignKeys:     make(map[string]*ForeignKeyState),
+        ForeignKeyNames: []string{},
+        Triggers:        make(map[string]*TriggerState),
+        TriggerNames:    []string{},
       }
     }
 
@@ -1307,33 +1255,14 @@ func (d *Differ) planTables() error {
 //  4. Creates any new target columns that do not exist natively yet.
 //  5. Drops any live database columns that no longer exist in the target state.
 func (d *Differ) planColumns() error {
-  schemaNames := make([]string, 0, len(d.target.Schemas))
-  for k := range d.target.Schemas {
-    schemaNames = append(schemaNames, k)
-  }
-  slices.Sort(schemaNames)
-
-  for _, schemaName := range schemaNames {
-    targetSchema, ok := d.target.Schemas[schemaName]
-    if !ok {
-      return fmt.Errorf(
-        "schema %q loaded from target.Schemas now not found in target.Schemas",
-        schemaName,
-      )
-    }
-
+  for _, schemaName := range d.target.SchemaNames {
+    targetSchema := d.target.Schemas[schemaName]
     liveSchema, ok := d.scratch.Schemas[schemaName]
     if !ok {
       continue
     }
 
-    targetTableNames := make([]string, 0, len(targetSchema.Tables))
-    for k := range targetSchema.Tables {
-      targetTableNames = append(targetTableNames, k)
-    }
-    slices.Sort(targetTableNames)
-
-    for _, tName := range targetTableNames {
+    for _, tName := range targetSchema.TableNames {
       targetTable, ok := targetSchema.Tables[tName]
       if !ok {
         return fmt.Errorf(
@@ -1347,15 +1276,9 @@ func (d *Differ) planColumns() error {
         continue
       }
 
-      targetColNames := make([]string, 0, len(targetTable.Columns))
-      for k := range targetTable.Columns {
-        targetColNames = append(targetColNames, k)
-      }
-      slices.Sort(targetColNames)
-
       // Step 1: Move required renames to temp names to free up namespace
       pendingRenames := make(map[string]pendingRename)
-      for _, cName := range targetColNames {
+      for _, cName := range targetTable.ColumnNames {
         targetCol, ok := targetTable.Columns[cName]
         if !ok {
           return fmt.Errorf(
@@ -1398,7 +1321,7 @@ func (d *Differ) planColumns() error {
       }
 
       // Step 2: Move all pending renames to their final names
-      for _, cName := range targetColNames {
+      for _, cName := range targetTable.ColumnNames {
         info, isRenaming := pendingRenames[cName]
         if !isRenaming {
           continue
@@ -1421,7 +1344,7 @@ func (d *Differ) planColumns() error {
       }
 
       // Step 3: Alter existing columns
-      for _, colName := range targetColNames {
+      for _, colName := range targetTable.ColumnNames {
         targetCol, ok := targetTable.Columns[colName]
         if !ok {
           return fmt.Errorf(
@@ -1511,7 +1434,7 @@ func (d *Differ) planColumns() error {
       }
 
       // Step 4: Handle creation of new columns
-      for _, colName := range targetColNames {
+      for _, colName := range targetTable.ColumnNames {
         targetCol, ok := targetTable.Columns[colName]
         if !ok {
           return fmt.Errorf(
@@ -1560,6 +1483,7 @@ func (d *Differ) planColumns() error {
           SQL:        sqlStr,
         })
 
+        liveTable.ColumnNames = append(liveTable.ColumnNames, colName)
         liveTable.Columns[colName] = &ColumnState{
           Name:          targetCol.Name,
           DataType:      targetCol.DataType,
@@ -1606,33 +1530,14 @@ func (d *Differ) planColumns() error {
 //     column definitions.
 //  2. Creates any new target primary keys that do not exist natively yet.
 func (d *Differ) planPrimaryKeys() error {
-  schemaNames := make([]string, 0, len(d.target.Schemas))
-  for k := range d.target.Schemas {
-    schemaNames = append(schemaNames, k)
-  }
-  slices.Sort(schemaNames)
-
-  for _, schemaName := range schemaNames {
-    targetSchema, ok := d.target.Schemas[schemaName]
-    if !ok {
-      return fmt.Errorf(
-        "schema %q loaded from target.Schemas now not found in target.Schemas",
-        schemaName,
-      )
-    }
-
+  for _, schemaName := range d.target.SchemaNames {
+    targetSchema := d.target.Schemas[schemaName]
     liveSchema, ok := d.scratch.Schemas[schemaName]
     if !ok {
       continue
     }
 
-    targetNames := make([]string, 0, len(targetSchema.Tables))
-    for k := range targetSchema.Tables {
-      targetNames = append(targetNames, k)
-    }
-    slices.Sort(targetNames)
-
-    for _, tName := range targetNames {
+    for _, tName := range targetSchema.TableNames {
       targetTable, ok := targetSchema.Tables[tName]
       if !ok {
         return fmt.Errorf(
@@ -1725,33 +1630,14 @@ func (d *Differ) planPrimaryKeys() error {
 //  4. Creates any new target indexes that do not exist natively yet.
 //  5. Drops any live database indexes that no longer exist in the target state.
 func (d *Differ) planIndexes() error {
-  schemaNames := make([]string, 0, len(d.target.Schemas))
-  for k := range d.target.Schemas {
-    schemaNames = append(schemaNames, k)
-  }
-  slices.Sort(schemaNames)
-
-  for _, schemaName := range schemaNames {
-    targetSchema, ok := d.target.Schemas[schemaName]
-    if !ok {
-      return fmt.Errorf(
-        "schema %q loaded from target.Schemas now not found in target.Schemas",
-        schemaName,
-      )
-    }
-
+  for _, schemaName := range d.target.SchemaNames {
+    targetSchema := d.target.Schemas[schemaName]
     liveSchema, ok := d.scratch.Schemas[schemaName]
     if !ok {
       continue
     }
 
-    targetTableNames := make([]string, 0, len(targetSchema.Tables))
-    for k := range targetSchema.Tables {
-      targetTableNames = append(targetTableNames, k)
-    }
-    slices.Sort(targetTableNames)
-
-    for _, tName := range targetTableNames {
+    for _, tName := range targetSchema.TableNames {
       targetTable, ok := targetSchema.Tables[tName]
       if !ok {
         return fmt.Errorf(
@@ -1765,15 +1651,9 @@ func (d *Differ) planIndexes() error {
         continue
       }
 
-      targetIdxNames := make([]string, 0, len(targetTable.Indexes))
-      for k := range targetTable.Indexes {
-        targetIdxNames = append(targetIdxNames, k)
-      }
-      slices.Sort(targetIdxNames)
-
       // Step 1: Move required renames to temp names to free up namespace
       pendingRenames := make(map[string]pendingRename)
-      for _, idxName := range targetIdxNames {
+      for _, idxName := range targetTable.IndexNames {
         targetIndex, ok := targetTable.Indexes[idxName]
         if !ok {
           return fmt.Errorf(
@@ -1816,7 +1696,7 @@ func (d *Differ) planIndexes() error {
       }
 
       // Step 2: Move all pending renames to their final names
-      for _, idxName := range targetIdxNames {
+      for _, idxName := range targetTable.IndexNames {
         info, isRenaming := pendingRenames[idxName]
         if !isRenaming {
           continue
@@ -1839,7 +1719,7 @@ func (d *Differ) planIndexes() error {
       }
 
       // Step 3: Drop existing indexes that have changed structurally
-      for _, idxName := range targetIdxNames {
+      for _, idxName := range targetTable.IndexNames {
         targetIndex, ok := targetTable.Indexes[idxName]
         if !ok {
           return fmt.Errorf(
@@ -1882,7 +1762,7 @@ func (d *Differ) planIndexes() error {
       }
 
       // Step 4: Handle creation of new indexes
-      for _, idxName := range targetIdxNames {
+      for _, idxName := range targetTable.IndexNames {
         targetIndex, ok := targetTable.Indexes[idxName]
         if !ok {
           return fmt.Errorf(
@@ -1916,6 +1796,7 @@ func (d *Differ) planIndexes() error {
           Name:       idxName,
           SQL:        sqlStr,
         })
+        liveTable.IndexNames = append(liveTable.IndexNames, idxName)
         liveTable.Indexes[idxName] = &IndexState{
           Name:     targetIndex.Name,
           IsUnique: targetIndex.IsUnique,
@@ -1960,33 +1841,14 @@ func (d *Differ) planIndexes() error {
 //  5. Drops any live database foreign keys that no longer exist in the target
 //     state.
 func (d *Differ) planForeignKeys() error {
-  schemaNames := make([]string, 0, len(d.target.Schemas))
-  for k := range d.target.Schemas {
-    schemaNames = append(schemaNames, k)
-  }
-  slices.Sort(schemaNames)
-
-  for _, schemaName := range schemaNames {
-    targetSchema, ok := d.target.Schemas[schemaName]
-    if !ok {
-      return fmt.Errorf(
-        "schema %q loaded from target.Schemas now not found in target.Schemas",
-        schemaName,
-      )
-    }
-
+  for _, schemaName := range d.target.SchemaNames {
+    targetSchema := d.target.Schemas[schemaName]
     liveSchema, ok := d.scratch.Schemas[schemaName]
     if !ok {
       continue
     }
 
-    targetTableNames := make([]string, 0, len(targetSchema.Tables))
-    for k := range targetSchema.Tables {
-      targetTableNames = append(targetTableNames, k)
-    }
-    slices.Sort(targetTableNames)
-
-    for _, tName := range targetTableNames {
+    for _, tName := range targetSchema.TableNames {
       targetTable, ok := targetSchema.Tables[tName]
       if !ok {
         return fmt.Errorf(
@@ -2000,15 +1862,9 @@ func (d *Differ) planForeignKeys() error {
         continue
       }
 
-      targetFKNames := make([]string, 0, len(targetTable.ForeignKeys))
-      for k := range targetTable.ForeignKeys {
-        targetFKNames = append(targetFKNames, k)
-      }
-      slices.Sort(targetFKNames)
-
       // Step 1: Move required renames to temp names to free up namespace
       pendingRenames := make(map[string]pendingRename)
-      for _, fkName := range targetFKNames {
+      for _, fkName := range targetTable.ForeignKeyNames {
         targetFK, ok := targetTable.ForeignKeys[fkName]
         if !ok {
           return fmt.Errorf(
@@ -2051,7 +1907,7 @@ func (d *Differ) planForeignKeys() error {
       }
 
       // Step 2: Move all pending renames to their final names
-      for _, fkName := range targetFKNames {
+      for _, fkName := range targetTable.ForeignKeyNames {
         info, isRenaming := pendingRenames[fkName]
         if !isRenaming {
           continue
@@ -2074,7 +1930,7 @@ func (d *Differ) planForeignKeys() error {
       }
 
       // Step 3: Drop existing foreign keys that have changed structurally
-      for _, fkName := range targetFKNames {
+      for _, fkName := range targetTable.ForeignKeyNames {
         targetFK, ok := targetTable.ForeignKeys[fkName]
         if !ok {
           return fmt.Errorf(
@@ -2122,7 +1978,7 @@ func (d *Differ) planForeignKeys() error {
       }
 
       // Step 4: Handle creation of new foreign keys
-      for _, fkName := range targetFKNames {
+      for _, fkName := range targetTable.ForeignKeyNames {
         targetFK, ok := targetTable.ForeignKeys[fkName]
         if !ok {
           return fmt.Errorf(
@@ -2169,6 +2025,7 @@ func (d *Differ) planForeignKeys() error {
           Name:       fkName,
           SQL:        sqlStr,
         })
+        liveTable.ForeignKeyNames = append(liveTable.ForeignKeyNames, fkName)
         liveTable.ForeignKeys[fkName] = &ForeignKeyState{
           Name:         targetFK.Name,
           ColsLocal:    targetFK.ColsLocal,
@@ -2214,13 +2071,15 @@ func (d *Differ) planForeignKeys() error {
 
 // planTriggers evaluates trigger lifecycle operations.
 func (d *Differ) planTriggers() error {
-  for schemaName, targetSchema := range d.target.Schemas {
+  for _, schemaName := range d.target.SchemaNames {
+    targetSchema := d.target.Schemas[schemaName]
     liveSchema, ok := d.scratch.Schemas[schemaName]
     if !ok {
       continue
     }
 
-    for tName, targetTable := range targetSchema.Tables {
+    for _, tName := range targetSchema.TableNames {
+      targetTable := targetSchema.Tables[tName]
       liveTable, ok := liveSchema.Tables[tName]
       if !ok {
         continue
@@ -2228,16 +2087,11 @@ func (d *Differ) planTriggers() error {
 
       if liveTable.Triggers == nil {
         liveTable.Triggers = make(map[string]*TriggerState)
+        liveTable.TriggerNames = []string{}
       }
 
       // Add/Update
-      targetNames := make([]string, 0, len(targetTable.Triggers))
-      for name := range targetTable.Triggers {
-        targetNames = append(targetNames, name)
-      }
-      slices.Sort(targetNames)
-
-      for _, name := range targetNames {
+      for _, name := range targetTable.TriggerNames {
         targetTrig := targetTable.Triggers[name]
         liveTrig, exists := liveTable.Triggers[name]
 
@@ -2286,6 +2140,9 @@ func (d *Differ) planTriggers() error {
             SQL:        sqlStr,
           })
 
+          if !exists {
+            liveTable.TriggerNames = append(liveTable.TriggerNames, name)
+          }
           liveTable.Triggers[name] = targetTrig
         }
       }

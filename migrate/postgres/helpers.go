@@ -220,20 +220,35 @@ func ToDatabaseDataType(
       t.IntervalType.GetFields(), t.IntervalType.Precision,
     ), nil
 
-  // 6. Schema-Qualified Types (Enum, Composite, Domain)
-  case *postgres.DataType_EnumType:
-    return formatQualifiedName(
-      t.EnumType.GetSchema(), t.EnumType.GetName(),
-    ), nil
-  case *postgres.DataType_CompositeType:
-    return formatQualifiedName(
-      t.CompositeType.GetSchema(), t.CompositeType.GetName(),
-    ), nil
-  case *postgres.DataType_DomainType:
-    return formatQualifiedName(
-      t.DomainType.GetSchema(), t.DomainType.GetName(),
-    ), nil
-  case *postgres.DataType_CustomRangeType:
+	// 6. Schema-Qualified Types (Enum, Composite, Domain)
+	case *postgres.DataType_EnumType:
+		schema := t.EnumType.GetSchema()
+		if schema == "" {
+			return "", fmt.Errorf(
+				"enum type %q is missing a schema prefix",
+				t.EnumType.GetName(),
+			)
+		}
+		return formatQualifiedName(schema, t.EnumType.GetName()), nil
+	case *postgres.DataType_CompositeType:
+		schema := t.CompositeType.GetSchema()
+		if schema == "" {
+			return "", fmt.Errorf(
+				"composite type %q is missing a schema prefix",
+				t.CompositeType.GetName(),
+			)
+		}
+		return formatQualifiedName(schema, t.CompositeType.GetName()), nil
+	case *postgres.DataType_DomainType:
+		schema := t.DomainType.GetSchema()
+		if schema == "" {
+			return "", fmt.Errorf(
+				"domain type %q is missing a schema prefix",
+				t.DomainType.GetName(),
+			)
+		}
+		return formatQualifiedName(schema, t.DomainType.GetName()), nil
+	case *postgres.DataType_CustomRangeType:
     return formatQualifiedName("", t.CustomRangeType.GetName()), nil
 
   // 7. Recursive Types (Arrays)

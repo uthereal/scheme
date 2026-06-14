@@ -479,7 +479,7 @@ func TestResolvePGType(t *testing.T) {
           EnumType: &postgres.EnumReference{Name: "status"},
         },
       },
-      "status", false,
+      "", true,
     },
     {
       "composite public",
@@ -499,7 +499,7 @@ func TestResolvePGType(t *testing.T) {
           CompositeType: &postgres.CompositeReference{Name: "address"},
         },
       },
-      "address", false,
+      "", true,
     },
     {
       "domain public",
@@ -519,7 +519,7 @@ func TestResolvePGType(t *testing.T) {
           DomainType: &postgres.DomainReference{Name: "email"},
         },
       },
-      "email", false,
+      "", true,
     },
     {
       "custom range",

@@ -148,7 +148,17 @@ func NewSchemaGraphGo(
     }
   }
   for _, e := range graph.Enums {
-    sgg.Enums = append(sgg.Enums, &EnumGo{Enum: e})
+    vals := make([]*EnumValueGo, 0, len(e.Values))
+    for _, v := range e.Values {
+      vals = append(vals, &EnumValueGo{
+        Name:  e.Name + strcase.ToGoPascal(v.Value),
+        Value: v.Value,
+      })
+    }
+    sgg.Enums = append(sgg.Enums, &EnumGo{
+      Name:   e.Name,
+      Values: vals,
+    })
   }
   slices.SortFunc(sgg.Enums, func(a *EnumGo, b *EnumGo) int {
     return cmp.Compare(a.Name, b.Name)

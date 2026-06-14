@@ -325,12 +325,15 @@ func TestNewDatabaseStateFromDb(t *testing.T) {
     require.NoError(t, err)
 
     wantState := &postgres.DatabaseState{
+      SchemaNames: []string{"custom_schema", "public"},
       Schemas: map[string]*postgres.SchemaState{
         "custom_schema": {
-          Name: "custom_schema",
+          Name:       "custom_schema",
+          TableNames: []string{"post_tags", "posts"},
           Tables: map[string]*postgres.TableState{
             "post_tags": {
-              Name: "post_tags",
+              Name:        "post_tags",
+              ColumnNames: []string{"post_id", "tag_id"},
               Columns: map[string]*postgres.ColumnState{
                 "post_id": {
                   Name:          "post_id",
@@ -349,7 +352,9 @@ func TestNewDatabaseStateFromDb(t *testing.T) {
                 Name:    "post_tags_pkey",
                 Columns: []string{"post_id", "tag_id"},
               },
-              Indexes: map[string]*postgres.IndexState{},
+              Indexes:         map[string]*postgres.IndexState{},
+              IndexNames:      []string{},
+              ForeignKeyNames: []string{"fk_post_tags_post"},
               ForeignKeys: map[string]*postgres.ForeignKeyState{
                 "fk_post_tags_post": {
                   Name:         "fk_post_tags_post",
@@ -361,9 +366,12 @@ func TestNewDatabaseStateFromDb(t *testing.T) {
                   OnDelete:     "CASCADE",
                 },
               },
+              TriggerNames: []string{},
+              Triggers:     map[string]*postgres.TriggerState{},
             },
             "posts": {
-              Name: "posts",
+              Name:        "posts",
+              ColumnNames: []string{"author_id", "id"},
               Columns: map[string]*postgres.ColumnState{
                 "author_id": {
                   Name:       "author_id",
@@ -384,7 +392,9 @@ func TestNewDatabaseStateFromDb(t *testing.T) {
                 Name:    "posts_pkey",
                 Columns: []string{"id"},
               },
-              Indexes: map[string]*postgres.IndexState{},
+              Indexes:         map[string]*postgres.IndexState{},
+              IndexNames:      []string{},
+              ForeignKeyNames: []string{"fk_posts_author"},
               ForeignKeys: map[string]*postgres.ForeignKeyState{
                 "fk_posts_author": {
                   Name:         "fk_posts_author",
@@ -396,17 +406,25 @@ func TestNewDatabaseStateFromDb(t *testing.T) {
                   OnDelete:     "SET NULL",
                 },
               },
+              TriggerNames: []string{},
+              Triggers:     map[string]*postgres.TriggerState{},
             },
           },
-          Enums:      map[string]*postgres.EnumState{},
-          Composites: map[string]*postgres.CompositeState{},
-          Domains:    map[string]*postgres.DomainState{},
-          Functions:  map[string]*postgres.FunctionState{}},
+          EnumNames:      []string{},
+          Enums:          map[string]*postgres.EnumState{},
+          CompositeNames: []string{},
+          Composites:     map[string]*postgres.CompositeState{},
+          DomainNames:    []string{},
+          Domains:        map[string]*postgres.DomainState{},
+          FunctionNames:  []string{},
+          Functions:      map[string]*postgres.FunctionState{}},
         "public": {
-          Name: "public",
+          Name:       "public",
+          TableNames: []string{"users"},
           Tables: map[string]*postgres.TableState{
             "users": {
-              Name: "users",
+              Name:        "users",
+              ColumnNames: []string{"billing_address", "id", "status", "username"},
               Columns: map[string]*postgres.ColumnState{
                 "billing_address": {
                   Name:          "billing_address",
@@ -437,6 +455,7 @@ func TestNewDatabaseStateFromDb(t *testing.T) {
                 Name:    "users_pkey",
                 Columns: []string{"id"},
               },
+              IndexNames: []string{"users_status_idx", "users_username_key"},
               Indexes: map[string]*postgres.IndexState{
                 "users_status_idx": {
                   Name:     "users_status_idx",
@@ -449,18 +468,24 @@ func TestNewDatabaseStateFromDb(t *testing.T) {
                   IsUnique: true,
                 },
               },
-              ForeignKeys: map[string]*postgres.ForeignKeyState{},
+              ForeignKeyNames: []string{},
+              ForeignKeys:     map[string]*postgres.ForeignKeyState{},
+              TriggerNames:    []string{},
+              Triggers:        map[string]*postgres.TriggerState{},
             },
           },
+          EnumNames: []string{"user_status"},
           Enums: map[string]*postgres.EnumState{
             "user_status": {
               Name:   "user_status",
               Values: []string{"ACTIVE", "INACTIVE", "BANNED"},
             },
           },
+          CompositeNames: []string{"address"},
           Composites: map[string]*postgres.CompositeState{
             "address": {
-              Name: "address",
+              Name:       "address",
+              FieldNames: []string{"city", "street", "zip"},
               Fields: map[string]*postgres.CompositeFieldState{
                 "city": {
                   Name: "city", DataType: "character varying(100)", Position: 2,
@@ -476,13 +501,15 @@ func TestNewDatabaseStateFromDb(t *testing.T) {
               },
             },
           },
+          DomainNames: []string{"email_address"},
           Domains: map[string]*postgres.DomainState{
             "email_address": {
               Name:     "email_address",
               DataType: "character varying(255)",
             },
           },
-          Functions: map[string]*postgres.FunctionState{},
+          FunctionNames: []string{},
+          Functions:     map[string]*postgres.FunctionState{},
         },
       },
     }

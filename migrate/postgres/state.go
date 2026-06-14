@@ -5,6 +5,7 @@ import (
   "database/sql"
   "errors"
   "fmt"
+  "slices"
   "strings"
   "sync"
   "time"
@@ -20,6 +21,7 @@ type CompositeState struct {
   Name         string
   NamePrevious string
   Fields       map[string]*CompositeFieldState
+  FieldNames   []string
 }
 
 // CompositeFieldState represents a single field within a composite type.
@@ -87,29 +89,39 @@ type ForeignKeyState struct {
 
 // DatabaseState represents the complete structural state of a database.
 type DatabaseState struct {
-  Schemas map[string]*SchemaState
+  Schemas     map[string]*SchemaState
+  SchemaNames []string
 }
 
 // SchemaState represents a collection of database objects within a namespace.
 type SchemaState struct {
-  Name         string
-  NamePrevious string
-  Tables       map[string]*TableState
-  Enums        map[string]*EnumState
-  Composites   map[string]*CompositeState
-  Domains      map[string]*DomainState
-  Functions    map[string]*FunctionState
+  Name           string
+  NamePrevious   string
+  Tables         map[string]*TableState
+  TableNames     []string
+  Enums          map[string]*EnumState
+  EnumNames      []string
+  Composites     map[string]*CompositeState
+  CompositeNames []string
+  Domains        map[string]*DomainState
+  DomainNames    []string
+  Functions      map[string]*FunctionState
+  FunctionNames  []string
 }
 
 // TableState represents a relational database table.
 type TableState struct {
-  Name         string
-  NamePrevious string
-  Columns      map[string]*ColumnState
-  PrimaryKey   *PrimaryKeyState
-  Indexes      map[string]*IndexState
-  ForeignKeys  map[string]*ForeignKeyState
-  Triggers     map[string]*TriggerState
+  Name           string
+  NamePrevious   string
+  Columns        map[string]*ColumnState
+  ColumnNames    []string
+  PrimaryKey     *PrimaryKeyState
+  Indexes        map[string]*IndexState
+  IndexNames     []string
+  ForeignKeys    map[string]*ForeignKeyState
+  ForeignKeyNames []string
+  Triggers       map[string]*TriggerState
+  TriggerNames   []string
 }
 
 // TriggerState represents a PostgreSQL trigger.
@@ -301,7 +313,8 @@ func NewDatabaseStateFromProto(
 
   schemas := proto.GetSchemas()
   state := &DatabaseState{
-    Schemas: make(map[string]*SchemaState, len(schemas)),
+    Schemas:     make(map[string]*SchemaState, len(schemas)),
+    SchemaNames: make([]string, 0, len(schemas)),
   }
 
   channels := make(map[string]*postgres.NotificationChannel)
@@ -314,19 +327,26 @@ func NewDatabaseStateFromProto(
   g.SetLimit(8)
 
   for _, s := range schemas {
+    state.SchemaNames = append(state.SchemaNames, s.GetName())
     s := s // Capture loop variable for goroutine
     g.Go(func() error {
       schemaState := &SchemaState{
-        Name:         s.GetName(),
-        NamePrevious: s.GetNamePrevious(),
-        Tables:       make(map[string]*TableState, len(s.GetTables())),
-        Enums:        make(map[string]*EnumState, len(s.GetEnums())),
-        Composites:   make(map[string]*CompositeState, len(s.GetComposites())),
-        Domains:      make(map[string]*DomainState, len(s.GetDomains())),
-        Functions:    make(map[string]*FunctionState, len(s.GetFunctions())),
+        Name:           s.GetName(),
+        NamePrevious:   s.GetNamePrevious(),
+        Tables:         make(map[string]*TableState, len(s.GetTables())),
+        TableNames:     make([]string, 0, len(s.GetTables())),
+        Enums:          make(map[string]*EnumState, len(s.GetEnums())),
+        EnumNames:      make([]string, 0, len(s.GetEnums())),
+        Composites:     make(map[string]*CompositeState, len(s.GetComposites())),
+        CompositeNames: make([]string, 0, len(s.GetComposites())),
+        Domains:        make(map[string]*DomainState, len(s.GetDomains())),
+        DomainNames:    make([]string, 0, len(s.GetDomains())),
+        Functions:      make(map[string]*FunctionState, len(s.GetFunctions())),
+        FunctionNames:  make([]string, 0, len(s.GetFunctions())),
       }
 
       for _, e := range s.GetEnums() {
+        schemaState.EnumNames = append(schemaState.EnumNames, e.GetName())
         schemaState.Enums[e.GetName()] = &EnumState{
           Name:         e.GetName(),
           NamePrevious: e.GetNamePrevious(),
@@ -335,6 +355,7 @@ func NewDatabaseStateFromProto(
       }
 
       for _, d := range s.GetDomains() {
+        schemaState.DomainNames = append(schemaState.DomainNames, d.GetName())
         dbType, err := ToDatabaseDataType(d.GetBaseType())
         if err != nil {
           return err
@@ -347,6 +368,9 @@ func NewDatabaseStateFromProto(
       }
 
       for _, f := range s.GetFunctions() {
+        schemaState.FunctionNames = append(
+          schemaState.FunctionNames, f.GetName(),
+        )
         funcState := &FunctionState{
           Name:         f.GetName(),
           NamePrevious: f.GetNamePrevious(),
@@ -382,6 +406,9 @@ func NewDatabaseStateFromProto(
       }
 
       for _, c := range s.GetComposites() {
+        schemaState.CompositeNames = append(
+          schemaState.CompositeNames, c.GetName(),
+        )
         compState := &CompositeState{
           Name:         c.GetName(),
           NamePrevious: c.GetNamePrevious(),
@@ -389,8 +416,10 @@ func NewDatabaseStateFromProto(
             map[string]*CompositeFieldState,
             len(c.GetFields()),
           ),
+          FieldNames: make([]string, 0, len(c.GetFields())),
         }
         for i, f := range c.GetFields() {
+          compState.FieldNames = append(compState.FieldNames, f.GetName())
           dbType, err := ToDatabaseDataType(f.GetType())
           if err != nil {
             return err
@@ -405,15 +434,19 @@ func NewDatabaseStateFromProto(
       }
 
       for _, t := range s.GetTables() {
+        schemaState.TableNames = append(schemaState.TableNames, t.GetName())
         tableState := &TableState{
           Name:         t.GetName(),
           NamePrevious: t.GetNamePrevious(),
           Columns:      make(map[string]*ColumnState, len(t.GetColumns())),
+          ColumnNames:  make([]string, 0, len(t.GetColumns())),
           Indexes:      make(map[string]*IndexState, len(t.GetIndexes())),
+          IndexNames:   make([]string, 0, len(t.GetIndexes())),
           ForeignKeys: make(
             map[string]*ForeignKeyState,
             len(t.GetForeignKeys()),
           ),
+          ForeignKeyNames: make([]string, 0, len(t.GetForeignKeys())),
         }
 
         targetNullableMap := make(map[string]bool, len(t.GetPrimaryKeys()))
@@ -422,6 +455,7 @@ func NewDatabaseStateFromProto(
         }
 
         for _, c := range t.GetColumns() {
+          tableState.ColumnNames = append(tableState.ColumnNames, c.GetName())
           dbType, err := ToDatabaseDataType(c.GetType())
           if err != nil {
             return err
@@ -473,6 +507,7 @@ func NewDatabaseStateFromProto(
         }
 
         for _, idx := range t.GetIndexes() {
+          tableState.IndexNames = append(tableState.IndexNames, idx.GetName())
           cols := make([]string, 0, len(idx.GetColumns()))
           for _, c := range idx.GetColumns() {
             cols = append(cols, c.GetName())
@@ -486,6 +521,9 @@ func NewDatabaseStateFromProto(
         }
 
         for _, fk := range t.GetForeignKeys() {
+          tableState.ForeignKeyNames = append(
+            tableState.ForeignKeyNames, fk.GetName(),
+          )
           localCols := make([]string, 0, len(fk.GetColumns()))
           targetCols := make([]string, 0, len(fk.GetColumns()))
           for _, mapping := range fk.GetColumns() {
@@ -527,7 +565,11 @@ func NewDatabaseStateFromProto(
         tableState.Triggers = make(
           map[string]*TriggerState, len(t.GetNotifyTriggers()),
         )
+        tableState.TriggerNames = make([]string, 0, len(t.GetNotifyTriggers()))
         for _, trig := range t.GetNotifyTriggers() {
+          tableState.TriggerNames = append(
+            tableState.TriggerNames, trig.GetName(),
+          )
           ch, ok := channels[trig.GetChannel()]
           if !ok {
             return fmt.Errorf(
@@ -656,7 +698,8 @@ func NewDatabaseStateFromDb(
   }
 
   state := &DatabaseState{
-    Schemas: make(map[string]*SchemaState),
+    Schemas:     make(map[string]*SchemaState),
+    SchemaNames: []string{},
   }
 
   ctxSchemasQuery, cancelCtxSchemasQuery := context.WithTimeout(
@@ -679,19 +722,26 @@ func NewDatabaseStateFromDb(
         "failed to scan schema -> %w", err,
       )
     }
+    state.SchemaNames = append(state.SchemaNames, name)
     state.Schemas[name] = &SchemaState{
-      Name:       name,
-      Tables:     make(map[string]*TableState),
-      Enums:      make(map[string]*EnumState),
-      Composites: make(map[string]*CompositeState),
-      Domains:    make(map[string]*DomainState),
-      Functions:  make(map[string]*FunctionState),
+      Name:           name,
+      Tables:         make(map[string]*TableState),
+      TableNames:     []string{},
+      Enums:          make(map[string]*EnumState),
+      EnumNames:      []string{},
+      Composites:     make(map[string]*CompositeState),
+      CompositeNames: []string{},
+      Domains:        make(map[string]*DomainState),
+      DomainNames:    []string{},
+      Functions:      make(map[string]*FunctionState),
+      FunctionNames:  []string{},
     }
   }
   err = sRows.Err()
   if err != nil {
     return nil, fmt.Errorf("failed iterating schemas -> %w", err)
   }
+  slices.Sort(state.SchemaNames)
 
   ctxTablesQuery, cancelCtxTablesQuery := context.WithTimeout(
     ctxTransaction, 30*time.Second,
@@ -719,17 +769,26 @@ func NewDatabaseStateFromDb(
       return nil, fmt.Errorf("schema %q not found", schema)
     }
 
+    s.TableNames = append(s.TableNames, name)
     s.Tables[name] = &TableState{
-      Name:        name,
-      Columns:     make(map[string]*ColumnState),
-      Indexes:     make(map[string]*IndexState),
-      ForeignKeys: make(map[string]*ForeignKeyState),
-      Triggers:    make(map[string]*TriggerState),
+      Name:            name,
+      Columns:         make(map[string]*ColumnState),
+      ColumnNames:     []string{},
+      Indexes:         make(map[string]*IndexState),
+      IndexNames:      []string{},
+      ForeignKeys:     make(map[string]*ForeignKeyState),
+      ForeignKeyNames: []string{},
+      Triggers:        make(map[string]*TriggerState),
+      TriggerNames:    []string{},
     }
   }
   err = tRows.Err()
   if err != nil {
     return nil, fmt.Errorf("failed iterating tables -> %w", err)
+  }
+
+  for _, s := range state.Schemas {
+    slices.Sort(s.TableNames)
   }
 
   ctxColumnsQuery, cancelCtxColumnsQuery := context.WithTimeout(
@@ -787,6 +846,7 @@ func NewDatabaseStateFromDb(
       )
     }
 
+    t.ColumnNames = append(t.ColumnNames, colName)
     t.Columns[colName] = &ColumnState{
       Name:            colName,
       DataType:        migrate.DatabaseDataType(dataType),
@@ -798,6 +858,12 @@ func NewDatabaseStateFromDb(
   err = cRows.Err()
   if err != nil {
     return nil, fmt.Errorf("failed iterating columns -> %w", err)
+  }
+
+  for _, s := range state.Schemas {
+    for _, t := range s.Tables {
+      slices.Sort(t.ColumnNames)
+    }
   }
 
   ctxEnumsQuery, cancelCtxEnumsQuery := context.WithTimeout(
@@ -826,6 +892,7 @@ func NewDatabaseStateFromDb(
 
     en, ok := s.Enums[name]
     if !ok {
+      s.EnumNames = append(s.EnumNames, name)
       en = &EnumState{Name: name, Values: []string{}}
       s.Enums[name] = en
     }
@@ -834,6 +901,10 @@ func NewDatabaseStateFromDb(
   err = eRows.Err()
   if err != nil {
     return nil, fmt.Errorf("failed iterating enums -> %w", err)
+  }
+
+  for _, s := range state.Schemas {
+    slices.Sort(s.EnumNames)
   }
 
   ctxCompositesQuery, cancelCtxCompositesQuery := context.WithTimeout(
@@ -867,12 +938,15 @@ func NewDatabaseStateFromDb(
 
     c, ok := s.Composites[comp]
     if !ok {
+      s.CompositeNames = append(s.CompositeNames, comp)
       c = &CompositeState{
-        Name:   comp,
-        Fields: make(map[string]*CompositeFieldState),
+        Name:       comp,
+        Fields:     make(map[string]*CompositeFieldState),
+        FieldNames: []string{},
       }
       s.Composites[comp] = c
     }
+    c.FieldNames = append(c.FieldNames, field)
     c.Fields[field] = &CompositeFieldState{
       Name:     field,
       DataType: migrate.DatabaseDataType(fType),
@@ -882,6 +956,13 @@ func NewDatabaseStateFromDb(
   err = compRows.Err()
   if err != nil {
     return nil, fmt.Errorf("failed iterating composites -> %w", err)
+  }
+
+  for _, s := range state.Schemas {
+    slices.Sort(s.CompositeNames)
+    for _, c := range s.Composites {
+      slices.Sort(c.FieldNames)
+    }
   }
 
   ctxDomainsQuery, cancelCtxDomainsQuery := context.WithTimeout(
@@ -911,6 +992,7 @@ func NewDatabaseStateFromDb(
     if !ok {
       return nil, fmt.Errorf("schema %q not found", schema)
     }
+    s.DomainNames = append(s.DomainNames, name)
     s.Domains[name] = &DomainState{
       Name:     name,
       DataType: migrate.DatabaseDataType(dataType),
@@ -919,6 +1001,10 @@ func NewDatabaseStateFromDb(
   err = domRows.Err()
   if err != nil {
     return nil, fmt.Errorf("failed iterating domains -> %w", err)
+  }
+
+  for _, s := range state.Schemas {
+    slices.Sort(s.DomainNames)
   }
 
   ctxFunctionsQuery, cancelCtxFunctionsQuery := context.WithTimeout(
@@ -966,6 +1052,7 @@ func NewDatabaseStateFromDb(
       }
     }
 
+    s.FunctionNames = append(s.FunctionNames, name)
     s.Functions[name] = &FunctionState{
       Name:       name,
       Arguments:  args,
@@ -978,6 +1065,11 @@ func NewDatabaseStateFromDb(
   if err != nil {
     return nil, fmt.Errorf("failed iterating functions -> %w", err)
   }
+
+  for _, s := range state.Schemas {
+    slices.Sort(s.FunctionNames)
+  }
+
   if err != nil {
     return nil, fmt.Errorf("failed iterating domains -> %w", err)
   }
@@ -1064,6 +1156,7 @@ func NewDatabaseStateFromDb(
 
     ix, ok := t.Indexes[idxName]
     if !ok {
+      t.IndexNames = append(t.IndexNames, idxName)
       ix = &IndexState{
         Name:     idxName,
         IsUnique: isUnique,
@@ -1078,6 +1171,13 @@ func NewDatabaseStateFromDb(
   if err != nil {
     return nil, fmt.Errorf("failed iterating indexes -> %w", err)
   }
+
+  for _, s := range state.Schemas {
+    for _, t := range s.Tables {
+      slices.Sort(t.IndexNames)
+    }
+  }
+
   ctxForeignKeysQuery, cancelCtxForeignKeysQuery := context.WithTimeout(
     ctxTransaction, 30*time.Second,
   )
@@ -1124,6 +1224,7 @@ func NewDatabaseStateFromDb(
 
     fk, ok := t.ForeignKeys[constraint]
     if !ok {
+      t.ForeignKeyNames = append(t.ForeignKeyNames, constraint)
       fk = &ForeignKeyState{
         Name:         constraint,
         ColsLocal:    []string{},
@@ -1144,6 +1245,12 @@ func NewDatabaseStateFromDb(
     return nil, fmt.Errorf(
       "failed iterating foreign keys -> %w", err,
     )
+  }
+
+  for _, s := range state.Schemas {
+    for _, t := range s.Tables {
+      slices.Sort(t.ForeignKeyNames)
+    }
   }
 
   ctxTriggersQuery, cancelCtxTriggersQuery := context.WithTimeout(
@@ -1183,12 +1290,12 @@ func NewDatabaseStateFromDb(
 
     if t.Triggers == nil {
       t.Triggers = make(map[string]*TriggerState)
+      t.TriggerNames = []string{}
     }
 
     trig, exists := t.Triggers[name]
-    if exists {
-      trig.Events = append(trig.Events, event)
-    } else {
+    if !exists {
+      t.TriggerNames = append(t.TriggerNames, name)
       funcName := ""
       idx := strings.Index(statement, "EXECUTE FUNCTION ")
       if idx != -1 {
@@ -1214,17 +1321,26 @@ func NewDatabaseStateFromDb(
         }
       }
 
-      t.Triggers[name] = &TriggerState{
+      trig = &TriggerState{
         Name:        name,
         Events:      []string{event},
         Orientation: orientation,
         Function:    funcName,
       }
+      t.Triggers[name] = trig
+    } else {
+      trig.Events = append(trig.Events, event)
     }
   }
   err = trRows.Err()
   if err != nil {
     return nil, fmt.Errorf("failed iterating triggers -> %w", err)
+  }
+
+  for _, s := range state.Schemas {
+    for _, t := range s.Tables {
+      slices.Sort(t.TriggerNames)
+    }
   }
 
   return state, nil
@@ -1239,29 +1355,50 @@ func (l *DatabaseState) Clone() *DatabaseState {
   }
 
   liveClone := &DatabaseState{
-    Schemas: make(map[string]*SchemaState, len(l.Schemas)),
+    Schemas:     make(map[string]*SchemaState, len(l.Schemas)),
+    SchemaNames: make([]string, len(l.SchemaNames)),
   }
+  copy(liveClone.SchemaNames, l.SchemaNames)
 
   for sName, s := range l.Schemas {
     sClone := &SchemaState{
-      Name:         s.Name,
-      NamePrevious: s.NamePrevious,
-      Tables:       make(map[string]*TableState, len(s.Tables)),
-      Enums:        make(map[string]*EnumState, len(s.Enums)),
-      Composites:   make(map[string]*CompositeState, len(s.Composites)),
-      Domains:      make(map[string]*DomainState, len(s.Domains)),
-      Functions:    make(map[string]*FunctionState, len(s.Functions)),
+      Name:           s.Name,
+      NamePrevious:   s.NamePrevious,
+      Tables:         make(map[string]*TableState, len(s.Tables)),
+      TableNames:     make([]string, len(s.TableNames)),
+      Enums:          make(map[string]*EnumState, len(s.Enums)),
+      EnumNames:      make([]string, len(s.EnumNames)),
+      Composites:     make(map[string]*CompositeState, len(s.Composites)),
+      CompositeNames: make([]string, len(s.CompositeNames)),
+      Domains:        make(map[string]*DomainState, len(s.Domains)),
+      DomainNames:    make([]string, len(s.DomainNames)),
+      Functions:      make(map[string]*FunctionState, len(s.Functions)),
+      FunctionNames:  make([]string, len(s.FunctionNames)),
     }
+    copy(sClone.TableNames, s.TableNames)
+    copy(sClone.EnumNames, s.EnumNames)
+    copy(sClone.CompositeNames, s.CompositeNames)
+    copy(sClone.DomainNames, s.DomainNames)
+    copy(sClone.FunctionNames, s.FunctionNames)
 
     for tName, t := range s.Tables {
       tClone := &TableState{
-        Name:         t.Name,
-        NamePrevious: t.NamePrevious,
-        Columns:      make(map[string]*ColumnState, len(t.Columns)),
-        Indexes:      make(map[string]*IndexState, len(t.Indexes)),
-        ForeignKeys:  make(map[string]*ForeignKeyState, len(t.ForeignKeys)),
-        Triggers:     make(map[string]*TriggerState, len(t.Triggers)),
+        Name:            t.Name,
+        NamePrevious:    t.NamePrevious,
+        Columns:         make(map[string]*ColumnState, len(t.Columns)),
+        ColumnNames:     make([]string, len(t.ColumnNames)),
+        Indexes:         make(map[string]*IndexState, len(t.Indexes)),
+        IndexNames:      make([]string, len(t.IndexNames)),
+        ForeignKeys:     make(map[string]*ForeignKeyState, len(t.ForeignKeys)),
+        ForeignKeyNames: make([]string, len(t.ForeignKeyNames)),
+        Triggers:        make(map[string]*TriggerState, len(t.Triggers)),
+        TriggerNames:    make([]string, len(t.TriggerNames)),
       }
+      copy(tClone.ColumnNames, t.ColumnNames)
+      copy(tClone.IndexNames, t.IndexNames)
+      copy(tClone.ForeignKeyNames, t.ForeignKeyNames)
+      copy(tClone.TriggerNames, t.TriggerNames)
+
       if t.PrimaryKey != nil {
         pkCols := make([]string, len(t.PrimaryKey.Columns))
         copy(pkCols, t.PrimaryKey.Columns)
@@ -1280,7 +1417,8 @@ func (l *DatabaseState) Clone() *DatabaseState {
           IsAutoIncrement: c.IsAutoIncrement,
         }
         if c.ColumnDefault != nil {
-          cClone.ColumnDefault = new(*c.ColumnDefault)
+          v := *c.ColumnDefault
+          cClone.ColumnDefault = &v
         }
         tClone.Columns[cName] = cClone
       }
@@ -1340,11 +1478,12 @@ func (l *DatabaseState) Clone() *DatabaseState {
 
     for cName, c := range s.Composites {
       cClone := &CompositeState{
-        Name: c.Name,
-
+        Name:         c.Name,
         NamePrevious: c.NamePrevious,
         Fields:       make(map[string]*CompositeFieldState, len(c.Fields)),
+        FieldNames:   make([]string, len(c.FieldNames)),
       }
+      copy(cClone.FieldNames, c.FieldNames)
       for fName, f := range c.Fields {
         cClone.Fields[fName] = &CompositeFieldState{
           Name:     f.Name,

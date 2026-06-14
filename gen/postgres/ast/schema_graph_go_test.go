@@ -43,6 +43,12 @@ func TestNewSchemaGraphGo(t *testing.T) {
       // Verify Enums
       if assert.Len(t, sgg.Enums, 1) {
         assert.Equal(t, "UserRole", sgg.Enums[0].Name)
+        if assert.Len(t, sgg.Enums[0].Values, 2) {
+          assert.Equal(t, "UserRoleAdmin", sgg.Enums[0].Values[0].Name)
+          assert.Equal(t, "admin", sgg.Enums[0].Values[0].Value)
+          assert.Equal(t, "UserRoleUser", sgg.Enums[0].Values[1].Name)
+          assert.Equal(t, "user", sgg.Enums[0].Values[1].Value)
+        }
       }
 
       // Verify Domains

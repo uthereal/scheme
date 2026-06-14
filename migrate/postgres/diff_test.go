@@ -144,14 +144,14 @@ func TestDiffer_Plan(t *testing.T) {
         {
           Type:       ActionTypeCreate,
           ObjectType: ObjectSchema,
-          Name:       "auth",
-          SQL:        `CREATE SCHEMA IF NOT EXISTS "auth";`,
+          Name:       "public",
+          SQL:        `CREATE SCHEMA IF NOT EXISTS "public";`,
         },
         {
           Type:       ActionTypeCreate,
           ObjectType: ObjectSchema,
-          Name:       "public",
-          SQL:        `CREATE SCHEMA IF NOT EXISTS "public";`,
+          Name:       "auth",
+          SQL:        `CREATE SCHEMA IF NOT EXISTS "auth";`,
         },
       },
     },
